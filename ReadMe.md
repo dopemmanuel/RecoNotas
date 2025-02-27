@@ -18,3 +18,4 @@ A continuación se presentan algunos de los comandos disponibles en RecoNotas:
 - `/addnote <nota>`: Añade una nueva nota.
 - `/addreminder <mensaje> <hora>`: Añade un recordatorio para una tarea o evento.
 - `/tasks`: Muestra todas las tareas y recordatorios pendientes.
+
