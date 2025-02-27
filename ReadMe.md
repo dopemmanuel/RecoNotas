@@ -7,7 +7,7 @@ RecoNotas es un bot de Telegram diseñado para ayudarte a tomar notas, guardar r
 - **Tomar Notas:** Guarda todas tus ideas y pensamientos importantes con facilidad.
 - **Recordatorios:** No olvides nunca más una tarea o evento importante.
 - **Organización de Tareas:** Mantén un seguimiento de lo que necesitas hacer.
-- **Integración con Google Calendar y Notion:** Organiza y sincroniza tus actividades con estas herramientas populares.
+- **Integración con Google Calendar y Notion:** Organiza y sincroniza tus actividades con estas herramientas populares.(**WIP**)
 
 ## Comandos
 
@@ -15,7 +15,12 @@ A continuación se presentan algunos de los comandos disponibles en RecoNotas:
 
 - `/start`: Inicia el bot y muestra una introducción.
 - `/help`: Muestra una lista de los comandos disponibles.
-- `/addnote <nota>`: Añade una nueva nota.
-- `/addreminder <mensaje> <hora>`: Añade un recordatorio para una tarea o evento.
+- `/addnote`: Inicia el proceso para añadir una nueva nota.
+- `/listnotes`: Lista todas tus notas guardadas.
+- `/deletenote`: Inicia el proceso para eliminar una nota.
+- `/addreminder`: Inicia el proceso para añadir un recordatorio.
+- `/listreminders`: Lista todos tus recordatorios.
 - `/tasks`: Muestra todas las tareas y recordatorios pendientes.
+- `/clearall`: Borra todas tus notas y recordatorios.
+---
 
