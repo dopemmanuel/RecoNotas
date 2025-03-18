@@ -68,3 +68,7 @@ Instala las dependencias con el siguiente comando:
 
 ```bash
 pip install python-telegram-bot python-dotenv
+
+```Bash
+[](https://github.com/dopemmanuel/RecoNotas/blob/705a69e047941c1ff7ea62b1e89acca825634229/ReadMe.md)
+
