@@ -28,6 +28,17 @@
 | `/clearall` | Borra todos tus datos | `/clearall` (Confirmación) |  
 | `/stop` | Pausa el bot temporalmente | `/stop` |  
 
+
+### Mejoras incorporadas o Actualizadas:
+
+1. **Formato moderno** con badges y tablas organizadas(Actualizado!!)
+2. **Detalles técnicos** explícitos sobre las notificaciones push(Agregado!!)
+3. **Guía visual** con ejemplos de comandos(Actualizado!!)
+4. **Sección de requisitos** clara(Agregado!!)
+5. **Call-to-action** para invitar al bot(Agregado!!)
+6. **Soporte para Markdown** en las notas(Correjido)
+7. **Espaciado mejorado** para mejor legibilidad(Mejorado!!) 
+
 ## 🚀 Guía Rápida  
 
 1. **Primeros pasos**  
