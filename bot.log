@@ -2,3 +2,9 @@
 2025-03-26 17:51:03,428 - __main__ - WARNING - ValueError en save_reminder (Usuario 6684170683): Formato de hora inv�lido. Usa HH:MM (ej. 14:30).
 2025-03-26 18:03:43,513 - __main__ - INFO - ✅ Bot iniciado correctamente
 2025-03-26 18:04:39,164 - __main__ - INFO - 🛑 Bot detenido
+2025-03-26 18:05:24,584 - __main__ - INFO - ✅ Bot iniciado correctamente
+2025-03-26 18:05:31,611 - __main__ - INFO - Nota añadida por 6684170683
+2025-03-26 18:05:42,739 - __main__ - INFO - Nota añadida por 6684170683
+2025-03-26 18:05:51,439 - __main__ - INFO - Nota 5 eliminada por 6684170683
+2025-03-26 18:06:16,043 - __main__ - INFO - Recordatorio añadido por 6684170683 a las 18:07
+2025-03-26 18:07:24,841 - __main__ - INFO - Notificación enviada a 6684170683
