@@ -1,60 +1,38 @@
+# 📝 RecoNotas - Tu asistente personal en Telegram  
 
-# RecoNotas
+**RecoNotas** es un bot avanzado de Telegram diseñado para gestionar notas, recordatorios con notificaciones push y organización de tareas. ¡Mantén tu vida organizada con simples comandos!
 
-RecoNotas es un bot de Telegram diseñado para ayudarte a tomar notas, guardar recordatorios y organizar tareas de manera eficiente. Es un asistente personal que te permite mantener todo bajo control y recordar lo que realmente importa, de manera sencilla y rápida.
+![Bot Demo](https://img.shields.io/badge/Status-Activo-brightgreen) 
+![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
+![Telegram](https://img.shields.io/badge/Telegram-Bot_API-26A5E4)
 
-## Características
+## 🌟 Características Principales  
 
-- **Tomar Notas:** Guarda todas tus ideas y pensamientos importantes con facilidad.
-- **Recordatorios:** No olvides nunca más una tarea o evento importante.
-- **Organización de Tareas:** Mantén un seguimiento de lo que necesitas hacer.
+| Función | Descripción |  
+|---------|-------------|  
+| **📝 Notas inteligentes** | Guarda ideas rápidamente con formato Markdown |  
+| **🔔 Recordatorios con notificaciones** | Alertas push en la hora exacta (formato HH:MM) |  
+| **🗂 Organización intuitiva** | Accede a tus notas y recordatorios desde cualquier dispositivo |  
+| **⚡ Comandos rápidos** | Interacción optimizada para móvil y desktop |  
 
-## Comandos
+## 🛠 Comandos Disponibles  
 
-A continuación se presentan los comandos disponibles en RecoNotas:
+| Comando | Descripción | Ejemplo |  
+|---------|-------------|---------|  
+| `/start` | Muestra el menú principal | `/start` |  
+| `/addnote` | Añade una nueva nota | `/addnote` → "Comprar leche" |  
+| `/listnotes` | Lista todas tus notas | `/listnotes` |  
+| `/deletenote` | Elimina una nota específica | `/deletenote` → [Seleccionar] |  
+| `/addreminder` | Programa recordatorio con notificación | `/addreminder` → "Reunión" → "14:30" |  
+| `/listreminders` | Muestra tus recordatorios activos | `/listreminders` |  
+| `/clearall` | Borra todos tus datos | `/clearall` (Confirmación) |  
+| `/stop` | Pausa el bot temporalmente | `/stop` |  
 
-| Comando          | Descripción                                           |
-|------------------|-------------------------------------------------------|
-| `/start`         | Inicia el bot y muestra una introducción.             |
-| `/help`          | Muestra una lista de los comandos disponibles.        |
-| `/addnote`       | Añade una nueva nota.                                 |
-| `/listnotes`     | Lista todas tus notas guardadas.                      |
-| `/deletenote`    | Elimina una nota específica.                          |
-| `/addreminder`   | Añade un recordatorio.                                |
-| `/listreminders` | Lista todos tus recordatorios.                        |
-| `/tasks`         | Muestra todas las tareas y recordatorios pendientes.  |
-| `/clearall`      | Borra todas tus notas y recordatorios.                |
-| `/stop`          | Apaga el bot. Envía cualquier mensaje para reactivarlo. |
+## 🚀 Guía Rápida  
 
----
-
-### **Cómo usar RecoNotas**
-
-1. **Iniciar el bot**:
-   - Envía `/start` para comenzar a usar RecoNotas. El bot te dará la bienvenida y te mostrará la lista de comandos disponibles.
-
-2. **Tomar notas**:
-   - Usa `/addnote` para añadir una nueva nota. El bot te pedirá que escribas el contenido de la nota.
-
-3. **Ver notas**:
-   - Usa `/listnotes` para ver todas las notas que has guardado.
-
-4. **Eliminar notas**:
-   - Usa `/deletenote` para eliminar una nota específica. El bot te mostrará una lista de tus notas y te pedirá que selecciones la que deseas eliminar.
-
-5. **Añadir recordatorios**:
-   - Usa `/addreminder` para añadir un recordatorio. El bot te pedirá el mensaje del recordatorio y la hora en formato `HH:MM`.
-
-6. **Ver recordatorios**:
-   - Usa `/listreminders` para ver todos tus recordatorios.
-
-7. **Borrar todo**:
-   - Usa `/clearall` para eliminar todas tus notas y recordatorios.
-
-8. **Apagar el bot**:
-   - Usa `/stop` para apagar el bot. Puedes reactivarlo enviando cualquier mensaje.
-
----
+1. **Primeros pasos**  
+   ```bash
+   /start
 
 ### **Requisitos**
 
