@@ -380,6 +380,7 @@ def clear_all(message):
         
         conn.commit()
         
+        
         bot.reply_to(
             message,
             f"✅ *Se eliminaron {notes_deleted} notas y {reminders_deleted} recordatorios.*",
