@@ -57,7 +57,14 @@ Instala las dependencias con el siguiente comando:
 
 ```bash
 pip install python-telegram-bot python-dotenv
+pip install cryptography boto3
 ```
+
+## 🔒 Seguridad y Cumplimiento
+- **Cifrado**: Todos los datos se almacenan con cifrado AES-256
+- **GDPR**: Cumplimiento con derecho al olvido (eliminación total con `/clearall`)
+- **Backups**: Copias diarias automáticas en AWS S3
+
 
 [Click aqui para ver las preguntas](https://github.com/dopemmanuel/RecoNotas/blob/main/preguntas.md)
 
