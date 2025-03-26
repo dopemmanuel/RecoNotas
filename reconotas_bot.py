@@ -1,322 +1,417 @@
-""" 
-Son imports que se necesitan para configurar el bot
-"""
+# ------------------------- IMPORTS -------------------------
 import os
-import threading
-from datetime import datetime
+import re
+import sys
+import io
+import logging
 import sqlite3
-import time as time_module
+from datetime import datetime
+from threading import Thread
+from time import sleep
 from dotenv import load_dotenv
 import telebot
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+from telebot.apihelper import ApiTelegramException
 
-# Cargar las variables del archivo .env
+# ------------------------- CONFIGURACIÓN DE ENCODING -------------------------
+# Soluciona problemas con emojis en Windows
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
+# ------------------------- CONFIGURACIÓN INICIAL -------------------------
 load_dotenv()
-
-# Obtener el token de entorno
 API_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
 if not API_TOKEN:
     raise ValueError("❌ Error: No se encontró TELEGRAM_BOT_TOKEN en .env")
 
-print("🔍 Cargando el bot...")
+# Configuración de logging (UTF-8 para soportar emojis)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("bot.log", encoding='utf-8'),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
 
-# Inicializar el bot
 bot = telebot.TeleBot(API_TOKEN)
 
-# Clase para manejar el estado del bot
-class BotState:
-    def __init__(self):
-        self.activo = True
-        self.ultima_interaccion = datetime.now()
-        self.inactivo = False
-
-# Crear una instancia del estado del bot
-bot_state = BotState()
-
-# Función para crear una nueva conexión a la base de datos
+# ------------------------- BASE DE DATOS -------------------------
 def crear_conexion():
-    """Crea una nueva conexión a la base de datos."""
+    """Crea y retorna una conexión a la base de datos."""
     return sqlite3.connect("reconotas.db", check_same_thread=False)
 
-# Crear la tabla de notas y recordatorios (solo una vez)
-def crear_tablas():
-    """Crea las tablas necesarias en la base de datos."""
-    conn = crear_conexion()
-    cursor = conn.cursor()
-    
-    # Crear la tabla de notas si no existe
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS notas (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        nota TEXT,
-        fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-    """)
-    
-    # Crear la tabla de recordatorios si no existe
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS recordatorios (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        mensaje TEXT,
-        hora TEXT
-    );
-    """)
-    
-    conn.commit()
-    conn.close()
-
-# Crear las tablas al inicio
-crear_tablas()
-
-# Función para enviar recordatorios
-def check_reminders():
-    """Envía recordatorios a los usuarios cuando es la hora programada."""
-    while bot_state.activo:
+def init_db():
+    """Inicializa las tablas si no existen."""
+    conn = None
+    try:
         conn = crear_conexion()
         cursor = conn.cursor()
-        now = datetime.now().strftime("%H:%M")
-        cursor.execute("SELECT user_id, mensaje FROM recordatorios WHERE hora = ?", (now,))
-        reminders = cursor.fetchall()
-        for reminder in reminders:
-            user_id, mensaje = reminder
-            try:
-                bot.send_message(user_id, f"⏰ Recordatorio: {mensaje}")
-                # Eliminar el recordatorio después de enviarlo (opcional)
-                cursor.execute("DELETE FROM recordatorios WHERE user_id = ? AND mensaje = ? AND hora = ?", (user_id, mensaje, now))
-                conn.commit()
-            except telebot.apihelper.ApiException as e:
-                print(f"❌ No se pudo enviar el recordatorio a {user_id}: {e}")
-        conn.close()
-        time_module.sleep(60)  # Revisar cada minuto
+        
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS notas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            nota TEXT NOT NULL,
+            fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""")
+        
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS recordatorios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            mensaje TEXT NOT NULL,
+            hora TEXT NOT NULL CHECK(hora GLOB '[0-2][0-9]:[0-5][0-9]'),
+            fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""")
+        
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_notas_user ON notas (user_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_recordatorios_user ON recordatorios (user_id)")
+        
+        conn.commit()
+    except sqlite3.Error as e:
+        logger.critical("Error al inicializar DB: %s", e)
+        raise
+    finally:
+        if conn:
+            conn.close()
 
-# Iniciar el hilo de recordatorios
-reminder_thread = threading.Thread(target=check_reminders)
-reminder_thread.daemon = True
+init_db()
+
+# ------------------------- RECORDATORIOS CON NOTIFICACIONES -------------------------
+def check_reminders():
+    """Envía recordatorios con notificaciones push."""
+    while True:
+        conn = None
+        try:
+            conn = crear_conexion()
+            cursor = conn.cursor()
+            now = datetime.now().strftime("%H:%M")
+            
+            cursor.execute("""
+            SELECT user_id, mensaje, id 
+            FROM recordatorios 
+            WHERE hora = ?
+            """, (now,))
+            
+            for user_id, mensaje, reminder_id in cursor.fetchall():
+                try:
+                    bot.send_message(
+                        user_id,
+                        f"🔔 **Recordatorio:** {mensaje}",
+                        parse_mode="Markdown",
+                        disable_notification=False
+                    )
+                    cursor.execute("DELETE FROM recordatorios WHERE id = ?", (reminder_id,))
+                    conn.commit()
+                    logger.info("Notificación enviada a %s", user_id)
+                    
+                except ApiTelegramException as e:
+                    if "chat not found" in str(e).lower():
+                        logger.warning("Chat no encontrado (Usuario %s). Eliminando recordatorio...", user_id)
+                        cursor.execute("DELETE FROM recordatorios WHERE id = ?", (reminder_id,))
+                        conn.commit()
+                    else:
+                        logger.error("Error de Telegram al enviar notificación a %s: %s", user_id, e)
+                except Exception as e:
+                    logger.error("Error inesperado al enviar notificación a %s: %s", user_id, e)
+        
+        except sqlite3.Error as e:
+            logger.error("Error de DB en check_reminders: %s", e)
+        except Exception as e:
+            logger.critical("Error crítico en check_reminders: %s", e)
+        finally:
+            if conn:
+                conn.close()
+            sleep(60)
+
+reminder_thread = Thread(target=check_reminders, daemon=True)
 reminder_thread.start()
 
-# Estados para manejar la interacción paso a paso
-user_states = {}
-
-# Función para verificar la inactividad
-def verificar_inactividad():
-    """Verifica si el bot ha estado inactivo durante un tiempo."""
-    while bot_state.activo:
-        tiempo_inactivo = (datetime.now() - bot_state.ultima_interaccion).total_seconds()
-        if tiempo_inactivo > 300 and not bot_state.inactivo:  # 300 segundos = 5 minutos
-            bot_state.inactivo = True
-            if user_states:  # Verificar si hay usuarios activos
-                bot.send_message(list(user_states.keys())[0], "Zzzz...")  # Enviar "Zzzz" al último usuario activo
-        time_module.sleep(60)  # Revisar cada minuto
-
-# Iniciar el hilo de verificación de inactividad
-inactividad_thread = threading.Thread(target=verificar_inactividad)
-inactividad_thread.daemon = True
-inactividad_thread.start()
-
-# Comandos del bot
-@bot.message_handler(commands=['start'])
+# ------------------------- HANDLERS -------------------------
+@bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
-    """Envía un mensaje de bienvenida al usuario."""
-    bot_state.ultima_interaccion = datetime.now()
-    if bot_state.inactivo:
-        bot_state.inactivo = False
-        bot.reply_to(message, "¡Estoy despierto! 😊")
-    
-    # Mensaje de bienvenida con la lista de comandos
-    welcome_text = (
-        "¡Bienvenido a RecoNotas! Tu asistente personal para notas y recordatorios.\n\n"
-        "Comandos:\n"
-        "/start - Inicia el bot\n"
-        "/help - Muestra esta ayuda\n"
-        "/addnote - Añade una nueva nota\n"
-        "/listnotes - Lista todas tus notas\n"
-        "/deletenote - Elimina una nota\n"
-        "/addreminder - Añade un recordatorio\n"
-        "/listreminders - Lista todos tus recordatorios\n"
-        "/tasks - Muestra todas las tareas y recordatorios pendientes\n"
-        "/clearall - Borra todas tus notas y recordatorios\n"
-        "/stop - Apaga el bot"
-    )
-    bot.reply_to(message, welcome_text)
-
-@bot.message_handler(commands=['help'])
-def send_help(message):
-    """Muestra una lista de comandos disponibles."""
-    bot_state.ultima_interaccion = datetime.now()
-    help_text = (
-        "Comandos:\n"
-        "/start - Inicia el bot\n"
-        "/help - Muestra esta ayuda\n"
-        "/addnote - Añade una nueva nota\n"
-        "/listnotes - Lista todas tus notas\n"
-        "/deletenote - Elimina una nota\n"
-        "/addreminder - Añade un recordatorio\n"
-        "/listreminders - Lista todos tus recordatorios\n"
-        "/tasks - Muestra todas las tareas y recordatorios pendientes\n"
-        "/clearall - Borra todas tus notas y recordatorios\n"
-        "/stop - Apaga el bot"
-    )
-    bot.reply_to(message, help_text)
+    """Mensaje de bienvenida."""
+    try:
+        bot.reply_to(
+            message,
+            "📝 **¡Bienvenido a RecoNotas!**\n\n"
+            "🔹 *Comandos disponibles:*\n"
+            "/addnote - Añade una nota\n"
+            "/listnotes - Lista tus notas\n"
+            "/deletenote - Elimina una nota\n"
+            "/addreminder - Programa un recordatorio\n"
+            "/listreminders - Muestra tus recordatorios\n"
+            "/clearall - Borra todo\n"
+            "/stop - Apaga el bot temporalmente",
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error("Error en send_welcome: %s", e)
 
 @bot.message_handler(commands=['addnote'])
-def add_note_start(message):
-    """Inicia el proceso para añadir una nueva nota."""
-    user_id = message.from_user.id
-    user_states[user_id] = "waiting_for_note"
-    bot.reply_to(message, "📝 Por favor, escribe la nota que deseas añadir:")
+def add_note(message):
+    """Inicia el proceso para añadir una nota."""
+    try:
+        msg = bot.reply_to(message, "📝 *Escribe la nota que deseas guardar:*", parse_mode="Markdown")
+        bot.register_next_step_handler(msg, save_note)
+    except Exception as e:
+        logger.error("Error en add_note: %s", e)
+        bot.reply_to(message, "❌ Error al iniciar la creación de nota.")
 
-@bot.message_handler(func=lambda message: user_states.get(message.from_user.id) == "waiting_for_note")
-def add_note_finish(message):
-    """Guarda la nota proporcionada por el usuario."""
+def save_note(message):
+    """Guarda la nota en la base de datos."""
     user_id = message.from_user.id
-    note = message.text.strip()
-    if note:
+    nota = message.text.strip()
+    conn = None
+    
+    try:
+        if not nota:
+            raise ValueError("La nota no puede estar vacía.")
+        
         conn = crear_conexion()
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO notas (user_id, nota) VALUES (?, ?)", (user_id, note))
+        cursor.execute("INSERT INTO notas (user_id, nota) VALUES (?, ?)", (user_id, nota))
         conn.commit()
-        conn.close()
-        bot.reply_to(message, "✅ Nota añadida: " + note)
-    else:
-        bot.reply_to(message, "❌ La nota no puede estar vacía.")
-    user_states.pop(user_id, None)
+        
+        bot.reply_to(message, "✅ *Nota guardada correctamente.*", parse_mode="Markdown")
+        logger.info("Nota añadida por %s", user_id)
+        
+    except ValueError as e:
+        bot.reply_to(message, f"❌ {e}")
+        logger.warning("ValueError en save_note (Usuario %s): %s", user_id, e)
+    except sqlite3.Error as e:
+        bot.reply_to(message, "❌ Error al guardar en la base de datos.")
+        logger.error("SQLiteError en save_note (Usuario %s): %s", user_id, e)
+    except Exception as e:
+        bot.reply_to(message, "❌ Error inesperado al guardar la nota.")
+        logger.critical("Error crítico en save_note (Usuario %s): %s", user_id, e)
+    finally:
+        if conn:
+            conn.close()
 
 @bot.message_handler(commands=['listnotes'])
 def list_notes(message):
-    """Lista todas las notas del usuario."""
+    """Muestra todas las notas del usuario."""
+    user_id = message.from_user.id
+    conn = None
+    
     try:
-        user_id = message.from_user.id
         conn = crear_conexion()
         cursor = conn.cursor()
         cursor.execute("SELECT id, nota FROM notas WHERE user_id = ?", (user_id,))
         notas = cursor.fetchall()
-        conn.close()
-        if notas:
-            response = "📌 Tus notas:\n" + "\n".join([f"{n[0]}. {n[1]}" for n in notas])
-        else:
-            response = "No tienes notas guardadas."
-        bot.reply_to(message, response)
-    except ValueError as e:
-        bot.reply_to(message, f"❌ Error al listar las notas: {e}")
+        
+        if not notas:
+            bot.reply_to(message, "📌 *No tienes notas guardadas.*", parse_mode="Markdown")
+            return
+        
+        markup = InlineKeyboardMarkup()
+        for note_id, nota in notas:
+            markup.add(InlineKeyboardButton(
+                text=f"❌ Eliminar: {nota[:20]}..." if len(nota) > 20 else f"❌ Eliminar: {nota}",
+                callback_data=f"delete_note_{note_id}"
+            ))
+        
+        bot.send_message(
+            user_id,
+            "📌 *Tus notas:*\nUsa los botones para eliminar.",
+            reply_markup=markup,
+            parse_mode="Markdown"
+        )
+        
+    except sqlite3.Error as e:
+        bot.reply_to(message, "❌ Error al acceder a la base de datos.")
+        logger.error("SQLiteError en list_notes (Usuario %s): %s", user_id, e)
+    except Exception as e:
+        bot.reply_to(message, "❌ Error inesperado al listar notas.")
+        logger.critical("Error crítico en list_notes (Usuario %s): %s", user_id, e)
+    finally:
+        if conn:
+            conn.close()
 
-@bot.message_handler(commands=['deletenote'])
-def delete_note_start(message):
-    """Inicia el proceso para eliminar una nota."""
-    user_id = message.from_user.id
-    conn = crear_conexion()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, nota FROM notas WHERE user_id = ?", (user_id,))
-    notas = cursor.fetchall()
-    conn.close()
-    if notas:
-        response = "📌 Selecciona el número de la nota que deseas eliminar:\n" + "\n".join([f"{n[0]}. {n[1]}" for n in notas])
-        user_states[user_id] = "waiting_for_note_id_to_delete"
-        bot.reply_to(message, response)
-    else:
-        bot.reply_to(message, "No tienes notas para eliminar.")
-
-@bot.message_handler(func=lambda message: user_states.get(message.from_user.id) == "waiting_for_note_id_to_delete")
-def delete_note_finish(message):
-    """Elimina la nota seleccionada por el usuario."""
-    user_id = message.from_user.id
+@bot.callback_query_handler(func=lambda call: call.data.startswith('delete_note_'))
+def delete_note_callback(call):
+    """Elimina una nota específica."""
+    user_id = call.from_user.id
+    note_id = call.data.split('_')[-1]
+    conn = None
+    
     try:
-        note_id = int(message.text.strip())
         conn = crear_conexion()
         cursor = conn.cursor()
         cursor.execute("DELETE FROM notas WHERE id = ? AND user_id = ?", (note_id, user_id))
         conn.commit()
-        conn.close()
-        bot.reply_to(message, "✅ Nota eliminada.")
-    except ValueError:
-        bot.reply_to(message, "❌ Por favor, ingresa un número válido.")
-    user_states.pop(user_id, None)
+        
+        if cursor.rowcount == 0:
+            raise sqlite3.DatabaseError("La nota no existe o ya fue eliminada.")
+        
+        bot.answer_callback_query(call.id, "✅ Nota eliminada.")
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+        logger.info("Nota %s eliminada por %s", note_id, user_id)
+        
+    except sqlite3.DatabaseError as e:
+        bot.answer_callback_query(call.id, "❌ La nota no existe.")
+        logger.error("DatabaseError en delete_note (Usuario %s): %s", user_id, e)
+    except Exception as e:
+        bot.answer_callback_query(call.id, "❌ Error al eliminar.")
+        logger.critical("Error crítico en delete_note (Usuario %s): %s", user_id, e)
+    finally:
+        if conn:
+            conn.close()
 
 @bot.message_handler(commands=['addreminder'])
 def add_reminder_start(message):
     """Inicia el proceso para añadir un recordatorio."""
-    user_id = message.from_user.id
-    user_states[user_id] = "waiting_for_reminder_message"
-    bot.reply_to(message, "⏰ Por favor, escribe el mensaje del recordatorio:")
+    try:
+        msg = bot.reply_to(message, "⏰ *Escribe el mensaje del recordatorio:*", parse_mode="Markdown")
+        bot.register_next_step_handler(msg, add_reminder_message)
+    except Exception as e:
+        logger.error("Error en add_reminder_start: %s", e)
+        bot.reply_to(message, "❌ Error al iniciar la creación de recordatorio.")
 
-@bot.message_handler(func=lambda message: user_states.get(message.from_user.id) == "waiting_for_reminder_message")
 def add_reminder_message(message):
     """Guarda el mensaje del recordatorio y solicita la hora."""
     user_id = message.from_user.id
-    user_states[user_id] = {"state": "waiting_for_reminder_time", "mensaje": message.text.strip()}
-    bot.reply_to(message, "⏰ Ahora, escribe la hora del recordatorio en formato HH:MM:")
-
-@bot.message_handler(func=lambda message: user_states.get(message.from_user.id, {}).get("state") == "waiting_for_reminder_time")
-def add_reminder_finish(message):
-    """Inicia el proceso para añadir un recordatorio."""
-    user_id = message.from_user.id
+    reminder_text = message.text.strip()
+    
     try:
-        hora = message.text.strip()
-        datetime.strptime(hora, "%H:%M")  # Validar formato de hora
-        mensaje = user_states[user_id]["mensaje"]
+        if not reminder_text:
+            raise ValueError("El mensaje no puede estar vacío.")
+        
+        msg = bot.reply_to(message, "⌛ *Ahora, escribe la hora en formato HH:MM:*", parse_mode="Markdown")
+        bot.register_next_step_handler(msg, lambda m: save_reminder(m, reminder_text))
+    except ValueError as e:
+        bot.reply_to(message, f"❌ {e}")
+        logger.warning("ValueError en add_reminder_message (Usuario %s): %s", user_id, e)
+    except Exception as e:
+        bot.reply_to(message, "❌ Error inesperado.")
+        logger.critical("Error crítico en add_reminder_message (Usuario %s): %s", user_id, e)
+
+def save_reminder(message, reminder_text):
+    """Guarda el recordatorio en la base de datos."""
+    user_id = message.from_user.id
+    hora = message.text.strip()
+    conn = None
+    
+    try:
+        if not re.match(r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$', hora):
+            raise ValueError("Formato de hora inválido. Usa HH:MM (ej. 14:30).")
+        
         conn = crear_conexion()
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO recordatorios (user_id, mensaje, hora) VALUES (?, ?, ?)", (user_id, mensaje, hora))
+        cursor.execute(
+            "INSERT INTO recordatorios (user_id, mensaje, hora) VALUES (?, ?, ?)",
+            (user_id, reminder_text, hora)
+        )
         conn.commit()
-        conn.close()
-        bot.reply_to(message, f"✅ Recordatorio añadido: {mensaje} a las {hora}")
-    except ValueError:
-        bot.reply_to(message, "❌ Formato de hora incorrecto. Usa HH:MM.")
-    user_states.pop(user_id, None)
+        
+        bot.reply_to(message, f"✅ *Recordatorio añadido a las {hora}!*", parse_mode="Markdown")
+        logger.info("Recordatorio añadido por %s a las %s", user_id, hora)
+        
+    except ValueError as e:
+        bot.reply_to(message, f"❌ {e}")
+        logger.warning("ValueError en save_reminder (Usuario %s): %s", user_id, e)
+    except sqlite3.IntegrityError as e:
+        bot.reply_to(message, "❌ Ya existe un recordatorio a esa hora.")
+        logger.error("IntegrityError en save_reminder (Usuario %s): %s", user_id, e)
+    except Exception as e:
+        bot.reply_to(message, "❌ Error inesperado al guardar el recordatorio.")
+        logger.critical("Error crítico en save_reminder (Usuario %s): %s", user_id, e)
+    finally:
+        if conn:
+            conn.close()
 
 @bot.message_handler(commands=['listreminders'])
 def list_reminders(message):
     """Lista todos los recordatorios del usuario."""
+    user_id = message.from_user.id
+    conn = None
+    
     try:
-        user_id = message.from_user.id
         conn = crear_conexion()
         cursor = conn.cursor()
-        cursor.execute("SELECT id, mensaje, hora FROM recordatorios WHERE user_id = ?", (user_id,))
-        recordatorios = cursor.fetchall()
-        conn.close()
-        if recordatorios:
-            response = "⏰ Tus recordatorios:\n" + "\n".join([f"{r[0]}. {r[1]} a las {r[2]}" for r in recordatorios])
-        else:
-            response = "No tienes recordatorios guardados."
-        bot.reply_to(message, response)
-    except ValueError as e:
-        bot.reply_to(message, f"❌ Error al listar los recordatorios: {e}")
+        cursor.execute("""
+        SELECT id, mensaje, hora 
+        FROM recordatorios 
+        WHERE user_id = ?
+        ORDER BY hora
+        """, (user_id,))
+        
+        reminders = cursor.fetchall()
+        
+        if not reminders:
+            bot.reply_to(message, "⏰ *No tienes recordatorios programados.*", parse_mode="Markdown")
+            return
+        
+        response = "⏰ *Tus recordatorios:*\n\n" + "\n".join(
+            [f"• {mensaje} a las {hora}" for _, mensaje, hora in reminders]
+        )
+        
+        bot.reply_to(message, response, parse_mode="Markdown")
+        
+    except sqlite3.Error as e:
+        bot.reply_to(message, "❌ Error al acceder a la base de datos.")
+        logger.error("SQLiteError en list_reminders (Usuario %s): %s", user_id, e)
+    except Exception as e:
+        bot.reply_to(message, "❌ Error inesperado al listar recordatorios.")
+        logger.critical("Error crítico en list_reminders (Usuario %s): %s", user_id, e)
+    finally:
+        if conn:
+            conn.close()
 
 @bot.message_handler(commands=['clearall'])
 def clear_all(message):
     """Elimina todas las notas y recordatorios del usuario."""
+    user_id = message.from_user.id
+    conn = None
+    
     try:
-        user_id = message.from_user.id
         conn = crear_conexion()
         cursor = conn.cursor()
+        
         cursor.execute("DELETE FROM notas WHERE user_id = ?", (user_id,))
+        notes_deleted = cursor.rowcount
+        
         cursor.execute("DELETE FROM recordatorios WHERE user_id = ?", (user_id,))
+        reminders_deleted = cursor.rowcount
+        
         conn.commit()
-        conn.close()
-        bot.reply_to(message, "✅ Todas tus notas y recordatorios han sido eliminados.")
-    except ValueError as e:
-        bot.reply_to(message, f"❌ Error al borrar todo: {e}")
+        
+        bot.reply_to(
+            message,
+            f"✅ *Se eliminaron {notes_deleted} notas y {reminders_deleted} recordatorios.*",
+            parse_mode="Markdown"
+        )
+        logger.info("Usuario %s borró %s notas y %s recordatorios", user_id, notes_deleted, reminders_deleted)
+        
+    except sqlite3.Error as e:
+        bot.reply_to(message, "❌ Error al limpiar la base de datos.")
+        logger.error("SQLiteError en clear_all (Usuario %s): %s", user_id, e)
+    except Exception as e:
+        bot.reply_to(message, "❌ Error inesperado al limpiar datos.")
+        logger.critical("Error crítico en clear_all (Usuario %s): %s", user_id, e)
+    finally:
+        if conn:
+            conn.close()
 
 @bot.message_handler(commands=['stop'])
 def stop_bot(message):
-    """Apaga el bot de manera segura."""
-    bot_state.activo = False
-    bot.reply_to(message, "🛑 Bot apagado. Envía cualquier mensaje para reactivarlo.")
+    """Detiene el bot temporalmente."""
+    try:
+        bot.reply_to(message, "🛑 *Bot pausado. Envía cualquier mensaje para reactivarlo.*", parse_mode="Markdown")
+        bot.stop_polling()
+    except Exception as e:
+        logger.critical("Error al detener el bot: %s", e)
 
-# Reiniciar el bot cuando esté apagado
-@bot.message_handler(func=lambda message: not bot_state.activo)
-def reactivar_bot(message):
-    """Reinicia el bot si está apagado."""
-    bot_state.activo = True
-    bot.reply_to(message, "¡Bot reactivado! 😊")
-    # Reiniciar los hilos si es necesario
-    reminder_thread.start()
-    inactividad_thread.start()
-
-# Iniciar el bot
-print("✅ RecoNotas está en línea y esperando mensajes...")
-try:
-    bot.polling()
-except ValueError as e:
-    print(f"❌ Error al iniciar el bot: {e}")
+# ------------------------- EJECUCIÓN -------------------------
+if __name__ == "__main__":
+    try:
+        logger.info("✅ Bot iniciado correctamente")
+        bot.polling()
+    except Exception as e:
+        logger.critical("Error en el bucle principal: %s", e)
+    finally:
+        logger.info("🛑 Bot detenido")
