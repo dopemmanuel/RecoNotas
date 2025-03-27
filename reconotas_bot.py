@@ -1,176 +1,171 @@
 # -*- coding: utf-8 -*-
 """
-RECONOTAS v2.0 - Bot de Telegram con:
-- Cifrado AES-256
-- Trazabilidad GDPR
-- Backups automáticos
-- Auditoría completa
+RECONOTAS v2.1 - Bot de Telegram seguro y optimizado
 """
 
-# ------------------------- IMPORTS MEJORADOS -------------------------
+# ------------------------- IMPORTS -------------------------
 import os
-import re
 import sys
 import io
 import json
 import logging
 import sqlite3
-import boto3
-from datetime import datetime, timedelta
-from threading import Thread, Lock
-from time import sleep
+from threading import Lock
 from dotenv import load_dotenv
 import telebot
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-from telebot.apihelper import ApiTelegramException
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import base64
 
-# ------------------------- CONFIGURACIÓN INICIAL -------------------------
-# Configuración de encoding UTF-8
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+# ------------------------- CONFIGURACIÓN -------------------------
+class Config:
+    def __init__(self):
+        # Configuración de encoding
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+        
+        load_dotenv()
+        
+        # Verificación detallada de variables de entorno
+        self.API_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+        if not self.API_TOKEN:
+            raise ValueError("❌ TELEGRAM_BOT_TOKEN no está configurado en el archivo .env")
+            
+        salt = os.getenv("ENCRYPTION_SALT")
+        if not salt:
+            raise ValueError("❌ ENCRYPTION_SALT no está configurado en el archivo .env")
+        self.SALT = salt.encode()
+        
+        self.CLAVE_MAESTRA = os.getenv("ENCRYPTION_MASTER_PASSWORD")
+        if not self.CLAVE_MAESTRA:
+            raise ValueError("❌ ENCRYPTION_MASTER_PASSWORD no está configurado en el archivo .env")
 
-# Cargar variables de entorno
-load_dotenv()
-API_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-SALT = os.getenv("ENCRYPTION_SALT").encode()  # Debe ser de 16+ bytes
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.FileHandler("auditoria.log", encoding='utf-8'),
+                logging.StreamHandler(sys.stdout)
+            ]
+        )
+        self.logger = logging.getLogger("SecureBot")
 
-if not API_TOKEN or not SALT:
-    raise ValueError("❌ Faltan variables de entorno esenciales")
+# ------------------------- CIFRADO -------------------------
+class CifradoManager:
+    def __init__(self, salt: bytes, master_password: str):
+        self.cipher = self._configurar_cifrado(salt, master_password)
+    
+    def _configurar_cifrado(self, salt: bytes, password: str) -> Fernet:
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA512(),
+            length=32,
+            salt=salt,
+            iterations=480000,
+        )
+        key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
+        return Fernet(key)
+    
+    def cifrar(self, texto: str) -> bytes:
+        return self.cipher.encrypt(texto.encode('utf-8'))
+    
+    def descifrar(self, datos: bytes) -> str:
+        try:
+            return self.cipher.decrypt(datos).decode('utf-8')
+        except Exception as e:
+            raise ValueError(f"Error de descifrado: {str(e)}") from e
 
-# ------------------------- CIFRADO MEJORADO -------------------------
-def generar_clave(password: str) -> bytes:
-    """Deriva una clave segura usando PBKDF2"""
-    kdf = PBKDF2HMAC(
-        algorithm=hashes.SHA512(),
-        length=32,
-        salt=SALT,
-        iterations=480000,
-    )
-    return base64.urlsafe_b64encode(kdf.derive(password.encode()))
-
-# Usar una contraseña maestra desde variables de entorno
-CLAVE_MAESTRA = os.getenv("ENCRYPTION_MASTER_PASSWORD")
-if not CLAVE_MAESTRA:
-    raise ValueError("❌ No se configuró ENCRYPTION_MASTER_PASSWORD")
-
-key = generar_clave(CLAVE_MAESTRA)
-cipher = Fernet(key)
-
-# ------------------------- LOGGING CON AUDITORÍA -------------------------
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("auditoria.log", encoding='utf-8'),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-logger = logging.getLogger("SecureBot")
-
-# ------------------------- CLASE SEGURA DE BASE DE DATOS -------------------------
+# ------------------------- BASE DE DATOS -------------------------
 class SecureDB:
-    """Wrapper seguro para operaciones de base de datos"""
     _instance = None
     _lock = Lock()
 
-    def __new__(cls):
+    def __init__(self):
+        self.conn = None
+        self._initialize_db()
+
+    @classmethod
+    def get_instance(cls):
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
-                    cls._instance = super(SecureDB, cls).__new__(cls)
-                    cls._instance._initialize_db()
+                    cls._instance = cls()
         return cls._instance
 
     def _initialize_db(self):
-        """Inicialización segura de la base de datos"""
-        self.conn = sqlite3.connect("secure_reconotas.db", check_same_thread=False)
-        self.conn.execute("PRAGMA journal_mode=WAL")
-        self.conn.execute("PRAGMA foreign_keys=ON")
-        self._create_tables()
+        try:
+            self.conn = sqlite3.connect("secure_reconotas.db", check_same_thread=False)
+            self.conn.execute("PRAGMA journal_mode=WAL")
+            self.conn.execute("PRAGMA foreign_keys=ON")
+            self._create_tables()
+        except sqlite3.Error as e:
+            logging.error(f"Error al inicializar la base de datos: {str(e)}")
+            raise
 
     def _create_tables(self):
-        """Crea tablas con estructura segura"""
-        cursor = self.conn.cursor()
+        tables = [
+            """CREATE TABLE IF NOT EXISTS usuarios (
+                id INTEGER PRIMARY KEY,
+                telegram_id INTEGER UNIQUE NOT NULL,
+                fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                consentimiento_gdpr BOOLEAN DEFAULT 0
+            )""",
+            """CREATE TABLE IF NOT EXISTS auditoria (
+                id INTEGER PRIMARY KEY,
+                usuario_id INTEGER NOT NULL,
+                tipo_evento TEXT NOT NULL,
+                detalles TEXT NOT NULL,
+                fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+            )""",
+            """CREATE TABLE IF NOT EXISTS notas (
+                id INTEGER PRIMARY KEY,
+                usuario_id INTEGER NOT NULL,
+                contenido_cifrado BLOB NOT NULL,
+                fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                fecha_modificacion TIMESTAMP,
+                FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+            )"""
+        ]
         
-        # Tabla de usuarios (requerida por GDPR)
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS usuarios (
-            id INTEGER PRIMARY KEY,
-            telegram_id INTEGER UNIQUE NOT NULL,
-            fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            consentimiento_gdpr BOOLEAN DEFAULT 0
-        )""")
+        try:
+            cursor = self.conn.cursor()
+            for table in tables:
+                cursor.execute(table)
+            self.conn.commit()
+        except sqlite3.Error as e:
+            logging.error(f"Error al crear tablas: {str(e)}")
+            raise
 
-        # Tabla de notas cifradas
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS notas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            usuario_id INTEGER NOT NULL,
-            contenido_cifrado BLOB NOT NULL,
-            fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            fecha_eliminacion TIMESTAMP NULL,
-            FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
-        )""")
-
-        # Tabla de recordatorios
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS recordatorios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            usuario_id INTEGER NOT NULL,
-            mensaje_cifrado BLOB NOT NULL,
-            hora TEXT NOT NULL CHECK(hora GLOB '[0-2][0-9]:[0-5][0-9]'),
-            fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
-        )""")
-
-        # Auditoría detallada (cumplimiento GDPR Art. 30)
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS auditoria (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            usuario_id INTEGER NOT NULL,
-            tipo_evento TEXT NOT NULL,
-            detalles TEXT NOT NULL,
-            direccion_ip TEXT,
-            user_agent TEXT,
-            fecha_evento TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
-        )""")
-
-        self.conn.commit()
-
-    def registrar_auditoria(self, usuario_id: int, tipo_evento: str, detalles: str, ip: str = None, user_agent: str = None):
-        """Registro detallado para cumplimiento normativo"""
+    def registrar_auditoria(self, usuario_id: int, tipo_evento: str, detalles: dict):
         try:
             self.conn.execute(
                 """INSERT INTO auditoria 
-                (usuario_id, tipo_evento, detalles, direccion_ip, user_agent) 
-                VALUES (?, ?, ?, ?, ?)""",
-                (usuario_id, tipo_evento, json.dumps(detalles), ip, user_agent))
+                (usuario_id, tipo_evento, detalles) 
+                VALUES (?, ?, ?)""",
+                (usuario_id, tipo_evento, json.dumps(detalles))
+            )
             self.conn.commit()
-        except Exception as e:
-            logger.error(f"Error en auditoría: {str(e)}")
+        except sqlite3.Error as e:
+            logging.error(f"Error en auditoría: {str(e)}")
+            raise
 
-# ------------------------- BOT CON SEGURIDAD MEJORADA -------------------------
+# ------------------------- BOT PRINCIPAL -------------------------
 class RecoNotasBot:
-    def __init__(self):
-        self.bot = telebot.TeleBot(API_TOKEN)
-        self.db = SecureDB()
-        self.setup_handlers()
-        self.start_background_jobs()
+    def __init__(self, config_instance: Config):
+        self.config = config_instance
+        self.bot = telebot.TeleBot(config_instance.API_TOKEN)
+        self.db = SecureDB.get_instance()
+        self.cifrado = CifradoManager(config_instance.SALT, config_instance.CLAVE_MAESTRA)
+        self._setup_handlers()
 
-    def setup_handlers(self):
-        """Configura todos los handlers seguros"""
-        
+    def _setup_handlers(self):
         @self.bot.message_handler(commands=['start', 'help'])
         def send_welcome(message):
             try:
-                user = self._registrar_usuario(message.from_user)
+                user_id = message.from_user.id
                 self.db.registrar_auditoria(
-                    user['id'], 
+                    user_id, 
                     "INICIO_SESION", 
                     {"comando": message.text}
                 )
@@ -181,110 +176,44 @@ class RecoNotasBot:
                     "/addnote - Añadir nota cifrada\n"
                     "/listnotes - Ver tus notas\n"
                     "/gdpr - Gestión de privacidad\n"
-                    "/addreminder - Programar recordatorio\n"
-                    "\n⚠️ Todos los datos se cifran con AES-256"
                 )
                 self.bot.reply_to(message, welcome_msg, parse_mode="Markdown")
                 
+            except telebot.apihelper.ApiTelegramException as e:
+                self.config.logger.error(f"Error de API de Telegram: {str(e)}")
+            except sqlite3.Error as e:
+                self.config.logger.error(f"Error de base de datos: {str(e)}")
             except Exception as e:
-                logger.error(f"Error en welcome: {str(e)}")
-
-        # ... (otros handlers con la misma estructura segura)
-
-    def _registrar_usuario(self, user_data):
-        """Registro seguro de usuarios con consentimiento GDPR"""
-        cursor = self.db.conn.cursor()
-        cursor.execute(
-            "INSERT OR IGNORE INTO usuarios (telegram_id) VALUES (?)",
-            (user_data.id,)
-        )
-        self.db.conn.commit()
-        
-        cursor.execute(
-            "SELECT id, consentimiento_gdpr FROM usuarios WHERE telegram_id = ?",
-            (user_data.id,)
-        )
-        return cursor.fetchone()
-
-    def _cifrar(self, texto: str) -> bytes:
-        """Cifrado robusto con verificación de integridad"""
-        return cipher.encrypt(texto.encode('utf-8'))
-
-    def _descifrar(self, datos: bytes) -> str:
-        """Descifrado con manejo de errores"""
-        try:
-            return cipher.decrypt(datos).decode('utf-8')
-        except Exception as e:
-            logger.error(f"Error al descifrar: {str(e)}")
-            raise ValueError("❌ Error al procesar datos cifrados")
-
-    def start_background_jobs(self):
-        """Inicia procesos en segundo plano"""
-        
-        def backup_manager():
-            """Realiza backups cifrados y los sube a AWS S3"""
-            while True:
-                try:
-                    fecha = datetime.now().strftime("%Y%m%d_%H%M")
-                    backup_file = f"backup_{fecha}.db"
-                    
-                    # Cifrar la base de datos completa
-                    with open(backup_file, 'wb') as f:
-                        with open("secure_reconotas.db", 'rb') as original:
-                            f.write(cipher.encrypt(original.read()))
-                    
-                    # Subir a AWS S3 (opcional)
-                    if os.getenv("AWS_ENABLED") == "true":
-                        s3 = boto3.client('s3')
-                        s3.upload_file(
-                            backup_file,
-                            os.getenv("AWS_BUCKET"),
-                            f"backups/{backup_file}",
-                            ExtraArgs={
-                                'ServerSideEncryption': 'AES256',
-                                'StorageClass': 'STANDARD_IA'
-                            }
-                        )
-                    
-                    # Rotación de backups locales (mantener últimos 7)
-                    backups = sorted([f for f in os.listdir() if f.startswith('backup_')])
-                    for old_backup in backups[:-7]:
-                        os.remove(old_backup)
-                        
-                    logger.info(f"Backup completado: {backup_file}")
-                    
-                except Exception as e:
-                    logger.error(f"Error en backup: {str(e)}")
-                
-                sleep(3600 * 6)  # Cada 6 horas
-
-        # Iniciar hilos seguros
-        Thread(target=backup_manager, daemon=True).start()
+                self.config.logger.error(f"Error inesperado: {str(e)}")
+                raise
 
     def run(self):
-        """Inicia el bot con manejo seguro de errores"""
-        logger.info("🚀 Iniciando RecoNotas Secure v2.0")
+        self.config.logger.info("Iniciando RecoNotas Secure v2.1")
         try:
-            self.bot.polling(none_stop=True, interval=2, timeout=30)
+            self.bot.polling(none_stop=True)
+        except KeyboardInterrupt:
+            self.config.logger.info("Bot detenido por el usuario")
+            sys.exit(0)
+        except telebot.apihelper.ApiTelegramException as e:
+            self.config.logger.critical(f"Error crítico de API: {str(e)}")
+            sys.exit(1)
         except Exception as e:
-            logger.critical(f"Error crítico: {str(e)}")
+            self.config.logger.critical(f"Error crítico inesperado: {str(e)}")
             sys.exit(1)
 
-# ------------------------- EJECUCIÓN PRINCIPAL -------------------------
+# ------------------------- EJECUCIÓN -------------------------
 if __name__ == "__main__":
-    # Verificar entorno seguro
-    if sys.version_info < (3, 8):
-        raise RuntimeError("Se requiere Python 3.8+ por razones de seguridad")
-    
-    if not os.path.exists('.env'):
-        raise FileNotFoundError("❌ Falta archivo .env con configuraciones sensibles")
-
-    # Iniciar aplicación
     try:
-        bot = RecoNotasBot()
+        config_instance = Config()
+        bot = RecoNotasBot(config_instance)
         bot.run()
-    except KeyboardInterrupt:
-        logger.info("🛑 Detención segura solicitada")
+    except ValueError as e:
+        print(f"❌ Error de configuración: {str(e)}")
+        print("ℹ️ Asegúrate de tener un archivo .env con todas las variables requeridas")
+        sys.exit(1)
+    except sqlite3.Error as e:
+        print(f"❌ Error de base de datos: {str(e)}")
+        sys.exit(1)
     except Exception as e:
-        logger.critical(f"Error irrecuperable: {str(e)}")
+        print(f"❌ Error inesperado: {str(e)}")
         sys.exit(1)
