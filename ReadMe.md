@@ -2,9 +2,10 @@
 
 **RecoNotas** es un bot avanzado de Telegram diseñado para gestionar notas, recordatorios con notificaciones push y organización de tareas. ¡Mantén tu vida organizada con simples comandos!
 
-![Status](https://img.shields.io/badge/Status-Activo-brightgreen) 
-![CSS](https://img.shields.io/badge/CSS-XC8%20v2.46%2B-purple)
-![Telegram](https://img.shields.io/badge/HTML-Living%20Standant-orange)
+![Bot Demo](https://img.shields.io/badge/Status-Activo-brightgreen) 
+![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
+![Telegram](https://img.shields.io/badge/Telegram-Bot_API-26A5E4)
+
 
 ## 🌟 Características Principales  
 
