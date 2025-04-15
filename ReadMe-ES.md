@@ -48,12 +48,12 @@
 config:
   layout: fixed
 ---
-flowchart LR
+```flowchart LR
     A["Usuario"] --> B["API Telegram"]
     B --> C{"Cifrado AES-256"}
     C --> D[("SQLite Seguro")] & E["S3 Backup"]
     D --> F["Registro Auditoría"]
-
+````
 
 ## 🛠️ Instalación Rápida  
 
