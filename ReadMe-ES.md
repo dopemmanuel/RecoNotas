@@ -44,12 +44,15 @@
 | `/backup` | Respaldar datos |  
 
 ### Arquitectura de Seguridad
-graph LR
-    A[Usuario] --> B[API Telegram]
-    B --> C{Cifrado AES-256}
-    C --> D[(SQLite Seguro)]
-    C --> E[S3 Backup]
-    D --> F[Registro Auditoría]
+---
+config:
+  layout: fixed
+---
+flowchart LR
+    A["Usuario"] --> B["API Telegram"]
+    B --> C{"Cifrado AES-256"}
+    C --> D[("SQLite Seguro")] & E["S3 Backup"]
+    D --> F["Registro Auditoría"]
 
 
 ## 🛠️ Instalación Rápida  
