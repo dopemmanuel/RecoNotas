@@ -24,3 +24,4 @@
 2025-04-15 21:14:50,909 - SecureBot - ERROR - Error de base de datos: FOREIGN KEY constraint failed
 2025-04-15 21:29:17,033 - SecureBot - INFO - Iniciando RecoNotas Secure v2.1
 2025-04-15 21:58:37,055 - SecureBot - CRITICAL - Error crítico inesperado: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2025-04-15 22:15:59,352 - SecureBot - INFO - Iniciando RecoNotas Secure v2.1
