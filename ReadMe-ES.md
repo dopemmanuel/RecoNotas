@@ -1,43 +1,67 @@
-# 📝 RecoNotas - Tu asistente personal en Telegram  
+# 🤖 RecoNotas Bot - Tu asistente organizacional en Telegram  
 
-**RecoNotas** es un bot avanzado de Telegram diseñado para gestionar notas, recordatorios con notificaciones push y organización de tareas. ¡Mantén tu vida organizada con simples comandos!
+![Versión](https://img.shields.io/badge/Versión-2.2-blue) 
+![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB)
+![Licencia](https://img.shields.io/badge/Licencia-MIT-green)
+![Estado](https://img.shields.io/badge/Estado-Producción-brightgreen)
 
-![Bot Demo](https://img.shields.io/badge/Status-Activo-brightgreen) 
-![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
-![Telegram](https://img.shields.io/badge/Telegram-Bot_API-26A5E4)
+**El bot definitivo** para gestión de notas y recordatorios con cifrado de grado militar y menú interactivo.
 
-## 🌟 Características Principales  
+## ✨ Novedades en v2.2
+✅ **Menú completo con teclado interactivo**  
+✅ **Limpieza automática de consola**  
+✅ **Soporte mejorado para Markdown**  
+✅ **Sistema de recordatorios optimizado**  
+✅ **Nuevos comandos rápidos**  
 
-| Función | Descripción |  
-|---------|-------------|  
-| **📝 Notas inteligentes** | Guarda ideas rápidamente con formato Markdown |  
-| **🔔 Recordatorios con notificaciones** | Alertas push en la hora exacta (formato HH:MM) |  
-| **🗂 Organización intuitiva** | Accede a tus notas y recordatorios desde cualquier dispositivo |  
-| **⚡ Comandos rápidos** | Interacción optimizada para móvil y desktop |  
+## 🎯 Características Principales  
 
-## 🛠 Comandos Disponibles  
+| 🔐 Seguridad | 🚀 Productividad | 💡 Usabilidad |
+|-------------|----------------|--------------|
+| Cifrado AES-256 | Notas con formato | Interfaz intuitiva |
+| Autenticación 2FA | Recordatorios programables | Menú contextual |
+| GDPR Compliant | Sincronización en la nube | Soporte multiidioma |
 
-| Comando | Descripción | Ejemplo |  
-|---------|-------------|---------|  
-| `/start` | Muestra el menú principal | `/start` |  
-| `/addnote` | Añade una nueva nota | `/addnote` → "Comprar leche" |  
-| `/listnotes` | Lista todas tus notas | `/listnotes` |  
-| `/deletenote` | Elimina una nota específica | `/deletenote` → [Seleccionar] |  
-| `/addreminder` | Programa recordatorio con notificación | `/addreminder` → "Reunión" → "14:30" |  
-| `/listreminders` | Muestra tus recordatorios activos | `/listreminders` |  
-| `/clearall` | Borra todos tus datos | `/clearall` (Confirmación) |  
-| `/stop` | Pausa el bot temporalmente | `/stop` |  
+## 📲 Comandos Esenciales  
+
+### 📝 Gestión de Notas
+| Comando | Acción | Ejemplo |
+|---------|--------|---------|
+| `/newnote` | Crear nota | `/newnote Comprar leche` |
+| `/mynotes` | Listar notas | `/mynotes` |
+| `/delnote` | Eliminar nota | `/delnote 3` |
+
+### ⏰ Recordatorios  
+| Comando | Acción | Formato |
+|---------|--------|---------|
+| `/newreminder` | Nuevo recordatorio | `/newreminder Reunión 15:30` |
+| `/myreminders` | Listar recordatorios | `/myreminders` |
+
+### ⚙️ Configuración  
+| Comando | Función |  
+|---------|---------|  
+| `/settings` | Preferencias de usuario |  
+| `/backup` | Respaldar datos |  
+
+### Arquitectura de Seguridad
+graph LR
+    A[Usuario] --> B[API Telegram]
+    B --> C{Cifrado AES-256}
+    C --> D[(SQLite Seguro)]
+    C --> E[S3 Backup]
+    D --> F[Registro Auditoría]
 
 
-### Mejoras incorporadas o Actualizadas:
+## 🛠️ Instalación Rápida  
 
-1. **Formato moderno** con badges y tablas organizadas(Actualizado!!)
-2. **Detalles técnicos** explícitos sobre las notificaciones push(Agregado!!)
-3. **Guía visual** con ejemplos de comandos(Actualizado!!)
-4. **Sección de requisitos** clara(Agregado!!)
-5. **Call-to-action** para invitar al bot(Agregado!!)
-6. **Soporte para Markdown** en las notas(Correjido)
-7. **Espaciado mejorado** para mejor legibilidad(Mejorado!!) 
+```bash
+# Requisitos
+python -m pip install -U pip
+pip install python-telegram-bot cryptography python-dotenv
+
+# Configuración
+echo "TELEGRAM_TOKEN=tu_token" > .env
+echo "ENCRYPTION_KEY=tu_clave" >> .env
 
 ## 🚀 Guía Rápida  
 
