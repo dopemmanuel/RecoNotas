@@ -3,3 +3,24 @@
 2025-03-27 16:17:29,878 - SecureBot - INFO - Iniciando RecoNotas Secure v2.1
 2025-03-27 16:17:30,255 - root - ERROR - Error en auditoría: FOREIGN KEY constraint failed
 2025-03-27 16:17:30,256 - SecureBot - ERROR - Error de base de datos: FOREIGN KEY constraint failed
+2025-04-10 15:44:01,636 - SecureBot - INFO - Iniciando RecoNotas Secure v2.1
+2025-04-10 15:48:18,844 - SecureBot - INFO - Iniciando RecoNotas Secure v2.1
+2025-04-10 15:48:33,164 - root - ERROR - Error en auditoría: FOREIGN KEY constraint failed
+2025-04-10 15:48:33,166 - SecureBot - ERROR - Error de base de datos: FOREIGN KEY constraint failed
+2025-04-10 15:48:42,326 - root - ERROR - Error en auditoría: FOREIGN KEY constraint failed
+2025-04-10 15:48:42,327 - SecureBot - ERROR - Error de base de datos: FOREIGN KEY constraint failed
+2025-04-10 15:48:46,640 - root - ERROR - Error en auditoría: FOREIGN KEY constraint failed
+2025-04-10 15:48:46,641 - SecureBot - ERROR - Error de base de datos: FOREIGN KEY constraint failed
+2025-04-10 15:54:04,628 - SecureBot - INFO - Iniciando RecoNotas Secure v2.1
+2025-04-10 15:54:11,336 - root - ERROR - Error en auditoría: FOREIGN KEY constraint failed
+2025-04-10 15:54:11,337 - SecureBot - ERROR - Error de base de datos: FOREIGN KEY constraint failed
+2025-04-15 21:13:03,545 - SecureBot - INFO - Iniciando RecoNotas Secure v2.1
+2025-04-15 21:13:42,948 - root - ERROR - Error en auditoría: FOREIGN KEY constraint failed
+2025-04-15 21:13:42,949 - SecureBot - ERROR - Error de base de datos: FOREIGN KEY constraint failed
+2025-04-15 21:14:20,238 - root - ERROR - Error en auditoría: FOREIGN KEY constraint failed
+2025-04-15 21:14:20,238 - SecureBot - ERROR - Error de base de datos: FOREIGN KEY constraint failed
+2025-04-15 21:14:48,805 - SecureBot - INFO - Iniciando RecoNotas Secure v2.1
+2025-04-15 21:14:50,908 - root - ERROR - Error en auditoría: FOREIGN KEY constraint failed
+2025-04-15 21:14:50,909 - SecureBot - ERROR - Error de base de datos: FOREIGN KEY constraint failed
+2025-04-15 21:29:17,033 - SecureBot - INFO - Iniciando RecoNotas Secure v2.1
+2025-04-15 21:58:37,055 - SecureBot - CRITICAL - Error crítico inesperado: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
