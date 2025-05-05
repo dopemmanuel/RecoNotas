@@ -380,12 +380,12 @@ class RecoNotasBot:
             "O usa los comandos tradicionales si lo prefieres"
         )
         self.bot.reply_to(
-            message, 
-            welcome_msg, 
-            parse_mode="Markdown", 
+            message,
+            welcome_msg,
+            parse_mode="Markdown",
             reply_markup=self._get_main_menu()
         )
-        
+
         # Registrar auditoría
         self.db.registrar_auditoria(
             db_user_id,
@@ -403,7 +403,7 @@ class RecoNotasBot:
             try:
                 text = message.text.lower()
                 _ = self._get_user_translation(message.from_user.id)
-                
+
                 if 'añadir nota' in text or 'addnote' in text:
                     add_note(message)
                 elif 'listar notas' in text or 'listnotes' in text:
@@ -466,19 +466,19 @@ class RecoNotasBot:
                 cursor = self.db.conn.cursor()
                 cursor.execute("SELECT id FROM usuarios WHERE telegram_id = ?", (user_id,))
                 db_user_id = cursor.fetchone()[0]
-                
+
                 # Generar nuevo secreto
                 secret = pyotp.random_base32()
                 totp = pyotp.TOTP(secret)
                 provisioning_uri = totp.provisioning_uri(name=str(user_id), issuer_name="RecoNotas")
-                
+
                 # Guardar en DB
                 cursor.execute(
                     """INSERT OR REPLACE INTO auth_2fa (usuario_id, secret, activado) VALUES (?, ?, 1)""",
                     (db_user_id, secret)
                 )
                 self.db.conn.commit()
-                
+
                 self.bot.reply_to(
                     message,
                     "🔐 Configura la autenticación 2FA en tu app:\n"
@@ -496,18 +496,18 @@ class RecoNotasBot:
             try:
                 user_id = message.from_user.id
                 _ = self._get_user_translation(user_id)
-                
+
                 cursor = self.db.conn.cursor()
                 cursor.execute("SELECT lenguaje FROM usuarios WHERE telegram_id = ?", (user_id,))
                 current_lang = cursor.fetchone()[0] or self.config.default_lang
-                
+
                 markup = telebot.types.InlineKeyboardMarkup()
                 markup.row(
                     telebot.types.InlineKeyboardButton("English", callback_data="setlang_en"),
                     telebot.types.InlineKeyboardButton("Español", callback_data="setlang_es"),
                     telebot.types.InlineKeyboardButton("Português", callback_data="setlang_pt")
                 )
-                
+
                 self.bot.reply_to(
                     message,
                     _("⚙️ Configuración actual:\n"
@@ -525,7 +525,7 @@ class RecoNotasBot:
                 lang = call.data.split('_')[1]
                 user_id = call.from_user.id
                 _ = self.translations.get(lang, self.translations[self.config.default_lang]).gettext
-                
+
                 if lang in self.config.supported_langs:
                     cursor = self.db.conn.cursor()
                     cursor.execute(
@@ -533,13 +533,13 @@ class RecoNotasBot:
                         (lang, user_id)
                     )
                     self.db.conn.commit()
-                    
+
                     self.bot.answer_callback_query(
                         call.id,
                         _("Idioma cambiado correctamente"),
                         show_alert=True
                     )
-                    
+
                     # Actualizar mensaje
                     self.bot.edit_message_text(
                         chat_id=call.message.chat.id,
@@ -573,7 +573,7 @@ class RecoNotasBot:
             except Exception as e:
                 self.config.logger.error(f"Error en add_note: {str(e)}")
                 self.bot.reply_to(
-                    message, 
+                    message,
                     _("❌ Ocurrió un error al procesar tu nota"),
                     reply_markup=self._get_main_menu()
                 )
@@ -583,17 +583,17 @@ class RecoNotasBot:
             try:
                 user_id = message.from_user.id
                 _ = self._get_user_translation(user_id)
-                
+
                 cursor = self.db.conn.cursor()
                 cursor.execute("SELECT id FROM usuarios WHERE telegram_id = ?", (user_id,))
                 db_user_id = cursor.fetchone()[0]
-                
+
                 cursor.execute(
                     "SELECT id, contenido_cifrado, fecha_creacion FROM notas WHERE usuario_id = ?",
                     (db_user_id,)
                 )
                 notes = cursor.fetchall()
-                
+
                 if not notes:
                     self.bot.reply_to(
                         message, 
@@ -601,21 +601,21 @@ class RecoNotasBot:
                         reply_markup=self._get_main_menu()
                     )
                     return
-                    
+
                 response = _("📖 *Tus notas:*\n\n")
                 for note_id, encrypted_note, fecha in notes:
                     decrypted_note = self.cifrado.descifrar(encrypted_note)
                     short_note = (decrypted_note[:50] + '...') if len(decrypted_note) > 50 else decrypted_note
                     response += _("🆔 {id}\n📅 {date}\n📝 {note}\n\n").format(
                         id=note_id, date=fecha, note=short_note)
-                    
+
                 self.bot.reply_to(
-                    message, 
-                    response, 
+                    message,
+                    response,
                     parse_mode="Markdown",
                     reply_markup=self._get_main_menu()
                 )
-                
+
             except Exception as e:
                 self.config.logger.error(f"Error en list_notes: {str(e)}")
                 self.bot.reply_to(
@@ -629,17 +629,17 @@ class RecoNotasBot:
             try:
                 user_id = message.from_user.id
                 _ = self._get_user_translation(user_id)
-                
+
                 cursor = self.db.conn.cursor()
                 cursor.execute("SELECT id FROM usuarios WHERE telegram_id = ?", (user_id,))
                 db_user_id = cursor.fetchone()[0]
-                
+
                 cursor.execute(
                     "SELECT id, contenido_cifrado FROM notas WHERE usuario_id = ?",
                     (db_user_id,)
                 )
                 notes = cursor.fetchall()
-                
+
                 if not notes:
                     self.bot.reply_to(
                         message, 
@@ -647,21 +647,21 @@ class RecoNotasBot:
                         reply_markup=self._get_main_menu()
                     )
                     return
-                    
+
                 # Crear teclado con las notas disponibles
                 markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
                 for note_id, encrypted_note in notes:
                     decrypted_note = self.cifrado.descifrar(encrypted_note)
                     short_note = (decrypted_note[:20] + '...') if len(decrypted_note) > 20 else decrypted_note
                     markup.add(f"{note_id}: {short_note}")
-                
+
                 msg = self.bot.reply_to(
                     message, 
                     _("🗑 Selecciona la nota que deseas eliminar:"),
                     reply_markup=markup
                 )
                 self.bot.register_next_step_handler(msg, self._process_delete_note_step)
-                
+
             except Exception as e:
                 self.config.logger.error(f"Error en delete_note: {str(e)}")
                 self.bot.reply_to(
@@ -681,7 +681,7 @@ class RecoNotasBot:
                         text = parts[1]
                         time_part = parts[2]
                         recurrente = "--recurrente" in message.text
-                        
+
                         # Validar formato de hora
                         try:
                             datetime.strptime(time_part, "%H:%M")
@@ -689,9 +689,9 @@ class RecoNotasBot:
                             return
                         except ValueError:
                             pass
-                
+
                 msg = self.bot.reply_to(
-                    message, 
+                    message,
                     _("⏰ ¿Qué quieres que te recuerde? Envía el texto del recordatorio:"),
                     reply_markup=telebot.types.ReplyKeyboardRemove()
                 )
@@ -764,7 +764,7 @@ class RecoNotasBot:
                     telebot.types.InlineKeyboardButton(_("Sí, eliminar todo"), callback_data="confirm_clear"),
                     telebot.types.InlineKeyboardButton(_("Cancelar"), callback_data="cancel_clear")
                 )
-                
+
                 self.bot.reply_to(
                     message,
                     _("⚠️ ¿Estás seguro que quieres eliminar TODOS tus datos?\nEsta acción no se puede deshacer."),
@@ -784,23 +784,23 @@ class RecoNotasBot:
                     cursor = self.db.conn.cursor()
                     cursor.execute("SELECT id FROM usuarios WHERE telegram_id = ?", (user_id,))
                     db_user_id = cursor.fetchone()[0]
-                    
+
                     # Registrar consentimiento de eliminación
                     self.db.registrar_auditoria(
                         db_user_id,
                         "GDPR_DELETE_REQUEST",
                         {"ip": "Telegram", "user_agent": "Telegram"}
                     )
-                    
+
                     # Eliminar todos los datos
                     cursor.execute("DELETE FROM notas WHERE usuario_id = ?", (db_user_id,))
                     cursor.execute("DELETE FROM recordatorios WHERE usuario_id = ?", (db_user_id,))
                     cursor.execute("DELETE FROM auth_2fa WHERE usuario_id = ?", (db_user_id,))
                     cursor.execute("DELETE FROM auditoria WHERE usuario_id = ?", (db_user_id,))
                     cursor.execute("DELETE FROM usuarios WHERE id = ?", (db_user_id,))
-                    
+
                     self.db.conn.commit()
-                    
+
                     self.bot.edit_message_text(
                         chat_id=call.message.chat.id,
                         message_id=call.message.message_id,
@@ -939,8 +939,9 @@ class RecoNotasBot:
         try:
             if not hasattr(message, 'text') or not message.text:
                 self.bot.reply_to(
-                    message, 
-                    _("❌ Debes proporcionar un texto para el recordatorio"),
+                    message,
+                
+                    ("❌ Debes proporcionar un texto para el recordatorio"),
                     reply_markup=self._get_main_menu()
                 )
                 return
@@ -948,19 +949,19 @@ class RecoNotasBot:
             reminder_text = message.text
             
             msg = self.bot.reply_to(
-                message, 
-                _("🕒 ¿A qué hora quieres que te lo recuerde? (Formato HH:MM, ej. 14:30)"),
-                reply_markup=telebot.types.ReplyKeyboardRemove()
+                message,
+                ("🕒 ¿A qué hora quieres que te lo recuerde? (Formato HH:MM, ej. 14:30)"),
+                    reply_markup=telebot.types.ReplyKeyboardRemove()
             )
             self.bot.register_next_step_handler(
-                msg, 
+                msg,
                 lambda m: self._process_reminder_time_step(m, reminder_text)
             )
         except Exception as e:
             self.config.logger.error(f"Error en _process_reminder_text_step: {str(e)}")
             self.bot.reply_to(
-                message, 
-                _("❌ Ocurrió un error al procesar tu recordatorio"),
+                message,
+                ("❌ Ocurrió un error al procesar tu recordatorio"),
                 reply_markup=self._get_main_menu()
             )
 
