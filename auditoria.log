@@ -40,3 +40,5 @@
 2025-04-16 16:29:11,467 - SecureBot - ERROR - Error en send_welcome: table usuarios has no column named lenguaje
 2025-04-16 16:50:19,219 - SecureBot - INFO - Iniciando RecoNotas Secure v2.3 con autenticación 2FA y multiidioma
 2025-04-16 16:50:49,189 - SecureBot - CRITICAL - Error crítico: RecoNotasBot._process_reminder_text_step() got an unexpected keyword argument 'db_user_id'
+2025-05-05 11:36:26,616 - SecureBot - INFO - Iniciando RecoNotas Secure v2.3 con autenticación 2FA y multiidioma
+2025-05-05 13:02:24,433 - SecureBot - CRITICAL - Error crítico: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))

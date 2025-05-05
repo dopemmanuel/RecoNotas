@@ -1,7 +1,9 @@
+"""
+RECONOTAS v2.4 <- 2.3 RELOADED Bot de Telegram seguro y optimizado 
+con autenticación 2FA y multiidioma
+"""
+
 # -*- coding: utf-8 -*-
-"""
-RECONOTAS v2.4 <- 2.3 RELOADED Bot de Telegram seguro y optimizado con autenticación 2FA y multiidioma
-"""
 
 # ------------------------- IMPORTS -------------------------
 import os
@@ -14,6 +16,7 @@ import gettext
 from threading import Lock, Timer
 from datetime import datetime, timedelta
 import base64
+from functools import partial
 from pathlib import Path
 from dotenv import load_dotenv
 import telebot
@@ -269,7 +272,7 @@ class RecoNotasBot:
             now = datetime.now()
             target_time = datetime.strptime(reminder_time, "%H:%M").time()
             target_datetime = datetime.combine(now.date(), target_time)
-            
+
             if target_datetime < now:
                 target_datetime += timedelta(days=1)
 
@@ -431,7 +434,7 @@ class RecoNotasBot:
             except Exception as e: # pylint: disable=broad-except
                 self.config.logger.error(f"Error en handle_menu_buttons: {str(e)}")
                 self.bot.reply_to(
-                    message, 
+                    message,
                     "❌ Ocurrió un error al procesar tu solicitud",
                     reply_markup=self._get_main_menu()
                 )
@@ -453,7 +456,7 @@ class RecoNotasBot:
                     "   - /settings - Cambia preferencias\n\n"
                     "ℹ️ Usa el menú de botones para acceso rápido!"
                 )
-                
+
                 self.bot.reply_to(
                     message,
                     tutorial_markdown,
@@ -649,7 +652,7 @@ class RecoNotasBot:
 
                 if not notes:
                     self.bot.reply_to(
-                        message, 
+                        message,
                         _("📭 No tienes notas para eliminar"),
                         reply_markup=self._get_main_menu()
                     )
@@ -704,7 +707,7 @@ class RecoNotasBot:
                     reply_markup=telebot.types.ReplyKeyboardRemove()
                 )
                 self.bot.register_next_step_handler(
-                    msg, lambda m: self._process_reminder_text_step(m)
+                    msg, partial(self._process_reminder_text_step)
                     )
             except Exception as e: # pylint: disable=broad-except
                 self.config.logger.error(f"Error en add_reminder: {str(e)}")
@@ -757,7 +760,7 @@ class RecoNotasBot:
             except Exception as e: # pylint: disable=broad-except
                 self.config.logger.error(f"Error en list_reminders: {str(e)}")
                 self.bot.reply_to(
-                    message, 
+                    message,
                     _("❌ Error al listar los recordatorios"),
                     reply_markup=self._get_main_menu()
                 )
