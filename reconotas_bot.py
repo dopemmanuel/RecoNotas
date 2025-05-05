@@ -256,11 +256,11 @@ class RecoNotasBot:
                 WHERE r.completado = 0"""
             )
             reminders = cursor.fetchall()
-            
+
             for reminder_id, user_id, text, reminder_time, recurrente in reminders:
                 self._schedule_reminder(user_id, reminder_time, text, reminder_id, recurrente)
-                
-        except Exception as e:
+
+        except Exception as e: # pylint: disable=broad-except
             self.config.logger.error(f"Error cargando recordatorios: {str(e)}")
 
     def _schedule_reminder(self, user_id, reminder_time, text, reminder_id=None, recurrente=False):
@@ -272,35 +272,37 @@ class RecoNotasBot:
             
             if target_datetime < now:
                 target_datetime += timedelta(days=1)
-                
+
             delay = (target_datetime - now).total_seconds()
-            
+
             if recurrente:
-                t = Timer(delay, self._setup_recurrent_reminder, args=(user_id, reminder_time, text, reminder_id))
+                t = Timer(delay, self._setup_recurrent_reminder,
+                          args=(user_id, reminder_time, text, reminder_id))
             else:
                 t = Timer(delay, self._send_reminder, args=(user_id, text, reminder_id))
-            
+
             t.start()
             self.active_reminders[(user_id, text)] = t
-            
-        except Exception as e:
+
+        except Exception as e:# pylint: disable=broad-except
             self.config.logger.error(f"Error programando recordatorio: {str(e)}")
 
     def _setup_recurrent_reminder(self, user_id, reminder_time, text, reminder_id=None):
         """Configura un recordatorio recurrente diario"""
         try:
-            # Enviar el recordatorio actual
+            #Update: Enviar el recordatorio actual
             self._send_reminder(user_id, text, reminder_id)
-            
-            # Programar para el siguiente día
+
+            #Update: Programar para el siguiente día
             next_day = datetime.now() + timedelta(days=1)
             delay = (next_day - datetime.now()).total_seconds()
-            
-            t = Timer(delay, self._setup_recurrent_reminder, args=(user_id, reminder_time, text, reminder_id))
+
+            t = Timer(delay, self._setup_recurrent_reminder,
+                      args=(user_id, reminder_time, text, reminder_id))
             t.start()
             self.active_reminders[(user_id, text)] = t
-            
-        except Exception as e:
+
+        except Exception as e: # pylint: disable=broad-except
             self.config.logger.error(f"Error en recordatorio recurrente: {str(e)}")
 
     def _send_reminder(self, user_id, text, reminder_id=None):
@@ -308,7 +310,7 @@ class RecoNotasBot:
         try:
             _ = self._get_user_translation(user_id)
             self.bot.send_message(user_id, _("🔔 Recordatorio: {text}").format(text=text))
-            
+
             if reminder_id:
                 cursor = self.db.conn.cursor()
                 cursor.execute(
@@ -316,14 +318,14 @@ class RecoNotasBot:
                     (reminder_id,)
                 )
                 self.db.conn.commit()
-                
-        except Exception as e:
+
+        except Exception as e:# pylint: disable=broad-except
             self.config.logger.error(f"Error enviando recordatorio: {str(e)}")
         finally:
             if (user_id, text) in self.active_reminders:
                 del self.active_reminders[(user_id, text)]
 
-#---------------------
+#--------------------- FIXING...
 
     def _setup_handlers(self):
         @self.bot.message_handler(commands=['start', 'help', 'menu'])
@@ -331,27 +333,30 @@ class RecoNotasBot:
             try:
                 user = message.from_user
                 user_id = user.id
-            
+
                 cursor = self.db.conn.cursor()
                 cursor.execute(
                     "INSERT OR IGNORE INTO usuarios (telegram_id, lenguaje) VALUES (?, ?)",
                     (user_id, self.config.default_lang)
                 )
                 self.db.conn.commit()
-                
+
                 cursor.execute("SELECT id FROM usuarios WHERE telegram_id = ?", (user_id,))
                 db_user_id = cursor.fetchone()[0]
-                
+
                 # Verificar 2FA si está activado
-                cursor.execute("SELECT secret FROM auth_2fa WHERE usuario_id = ? AND activado = 1", (db_user_id,))
+                cursor.execute("SELECT secret FROM auth_2fa WHERE usuario_id = ? AND activado = 1",
+                    (db_user_id,))
                 if cursor.fetchone():
                     msg = self.bot.reply_to(message, "🔐 Ingresa tu código 2FA:")
-                    self.bot.register_next_step_handler(msg, lambda m: self._verify_2fa(m, db_user_id))
+                    self.bot.register_next_step_handler(
+                        msg, lambda m: self._verify_2fa(m, db_user_id)
+                    )
                     return
-                
+
                 self._show_main_menu(message, db_user_id)
-                
-            except Exception as e:
+
+            except Exception as e: # pylint: disable=broad-except
                 self.config.logger.error(f"Error en send_welcome: {str(e)}")
                 self.bot.reply_to(message, "❌ Ocurrió un error al procesar tu solicitud")
 
@@ -362,12 +367,12 @@ class RecoNotasBot:
             cursor = self.db.conn.cursor()
             cursor.execute("SELECT secret FROM auth_2fa WHERE usuario_id = ?", (db_user_id,))
             secret = cursor.fetchone()[0]
-            
+
             if pyotp.TOTP(secret).verify(user_code):
                 self._show_main_menu(message, db_user_id)
             else:
                 self.bot.reply_to(message, "❌ Código inválido. Intenta nuevamente o usa /start")
-        except Exception as e:
+        except Exception as e: # pylint: disable=broad-except
             self.config.logger.error(f"Error en verify_2fa: {str(e)}")
             self.bot.reply_to(message, "❌ Error en autenticación")
 
@@ -418,12 +423,12 @@ class RecoNotasBot:
                     show_settings(message)
                 else:
                     self.bot.reply_to(
-                        message, 
+                        message,
                         _("No reconozco ese comando. Usa el menú o escribe /help"),
                         reply_markup=self._get_main_menu()
                     )
-                    
-            except Exception as e:
+
+            except Exception as e: # pylint: disable=broad-except
                 self.config.logger.error(f"Error en handle_menu_buttons: {str(e)}")
                 self.bot.reply_to(
                     message, 
@@ -455,7 +460,7 @@ class RecoNotasBot:
                     parse_mode="Markdown",
                     reply_markup=self._get_main_menu()
                 )
-            except Exception as e:
+            except Exception as e: # pylint: disable=broad-except
                 self.config.logger.error(f"Error en show_tutorial: {str(e)}")
                 self.bot.reply_to(message, "❌ Error al mostrar el tutorial")
 
@@ -474,7 +479,8 @@ class RecoNotasBot:
 
                 # Guardar en DB
                 cursor.execute(
-                    """INSERT OR REPLACE INTO auth_2fa (usuario_id, secret, activado) VALUES (?, ?, 1)""",
+                    """INSERT OR REPLACE INTO auth_2fa (usuario_id, secret, activado) 
+                    VALUES (?, ?, 1)""",
                     (db_user_id, secret)
                 )
                 self.db.conn.commit()
@@ -487,7 +493,7 @@ class RecoNotasBot:
                     "Guarda este código en un lugar seguro!",
                     reply_markup=self._get_main_menu()
                 )
-            except Exception as e:
+            except Exception as e: # pylint: disable=broad-except
                 self.config.logger.error(f"Error en setup_2fa: {str(e)}")
                 self.bot.reply_to(message, "❌ Error al configurar 2FA")
 
@@ -515,7 +521,7 @@ class RecoNotasBot:
                         "Selecciona un nuevo idioma:").format(lang=current_lang.upper()),
                     reply_markup=markup
                 )
-            except Exception as e:
+            except Exception as e: # pylint: disable=broad-except
                 self.config.logger.error(f"Error en show_settings: {str(e)}")
                 self.bot.reply_to(message, "❌ Error al cargar configuración")
 
@@ -552,7 +558,7 @@ class RecoNotasBot:
                         _("Idioma no soportado"),
                         show_alert=True
                     )
-            except Exception as e:
+            except Exception as e: # pylint: disable=broad-except
                 self.config.logger.error(f"Error en set_language: {str(e)}")
                 self.bot.answer_callback_query(
                     call.id,
@@ -565,12 +571,12 @@ class RecoNotasBot:
             try:
                 _ = self._get_user_translation(message.from_user.id)
                 msg = self.bot.reply_to(
-                    message, 
+                    message,
                     _("📝 Envíame el texto de la nota que quieres guardar:"),
                     reply_markup=telebot.types.ReplyKeyboardRemove()
                 )
                 self.bot.register_next_step_handler(msg, self._process_note_step)
-            except Exception as e:
+            except Exception as e: # pylint: disable=broad-except
                 self.config.logger.error(f"Error en add_note: {str(e)}")
                 self.bot.reply_to(
                     message,
@@ -596,7 +602,7 @@ class RecoNotasBot:
 
                 if not notes:
                     self.bot.reply_to(
-                        message, 
+                        message,
                         _("📭 No tienes ninguna nota guardada"),
                         reply_markup=self._get_main_menu()
                     )
@@ -605,7 +611,8 @@ class RecoNotasBot:
                 response = _("📖 *Tus notas:*\n\n")
                 for note_id, encrypted_note, fecha in notes:
                     decrypted_note = self.cifrado.descifrar(encrypted_note)
-                    short_note = (decrypted_note[:50] + '...') if len(decrypted_note) > 50 else decrypted_note
+                    short_note = (
+                        decrypted_note[:50] + '...') if len(decrypted_note) > 50 else decrypted_note
                     response += _("🆔 {id}\n📅 {date}\n📝 {note}\n\n").format(
                         id=note_id, date=fecha, note=short_note)
 
@@ -616,10 +623,10 @@ class RecoNotasBot:
                     reply_markup=self._get_main_menu()
                 )
 
-            except Exception as e:
+            except Exception as e: # pylint: disable=broad-except
                 self.config.logger.error(f"Error en list_notes: {str(e)}")
                 self.bot.reply_to(
-                    message, 
+                    message,
                     _("❌ Error al listar las notas"),
                     reply_markup=self._get_main_menu()
                 )
@@ -652,20 +659,21 @@ class RecoNotasBot:
                 markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
                 for note_id, encrypted_note in notes:
                     decrypted_note = self.cifrado.descifrar(encrypted_note)
-                    short_note = (decrypted_note[:20] + '...') if len(decrypted_note) > 20 else decrypted_note
+                    short_note = (
+                        decrypted_note[:20] + '...') if len(decrypted_note) > 20 else decrypted_note
                     markup.add(f"{note_id}: {short_note}")
 
                 msg = self.bot.reply_to(
-                    message, 
+                    message,
                     _("🗑 Selecciona la nota que deseas eliminar:"),
                     reply_markup=markup
                 )
                 self.bot.register_next_step_handler(msg, self._process_delete_note_step)
 
-            except Exception as e:
+            except Exception as e: # pylint: disable=broad-except
                 self.config.logger.error(f"Error en delete_note: {str(e)}")
                 self.bot.reply_to(
-                    message, 
+                    message,
                     _("❌ Error al listar notas para eliminar"),
                     reply_markup=self._get_main_menu()
                 )
@@ -695,11 +703,13 @@ class RecoNotasBot:
                     _("⏰ ¿Qué quieres que te recuerde? Envía el texto del recordatorio:"),
                     reply_markup=telebot.types.ReplyKeyboardRemove()
                 )
-                self.bot.register_next_step_handler(msg, lambda m: self._process_reminder_text_step(m))
-            except Exception as e:
+                self.bot.register_next_step_handler(
+                    msg, lambda m: self._process_reminder_text_step(m)
+                    )
+            except Exception as e: # pylint: disable=broad-except
                 self.config.logger.error(f"Error en add_reminder: {str(e)}")
                 self.bot.reply_to(
-                    message, 
+                    message,
                     _("❌ Ocurrió un error al crear el recordatorio"),
                     reply_markup=self._get_main_menu()
                 )
@@ -709,11 +719,11 @@ class RecoNotasBot:
             try:
                 user_id = message.from_user.id
                 _ = self._get_user_translation(user_id)
-                
+
                 cursor = self.db.conn.cursor()
                 cursor.execute("SELECT id FROM usuarios WHERE telegram_id = ?", (user_id,))
                 db_user_id = cursor.fetchone()[0]
-                
+
                 cursor.execute(
                     """SELECT id, texto, hora_recordatorio, recurrente 
                     FROM recordatorios 
@@ -722,29 +732,29 @@ class RecoNotasBot:
                     (db_user_id,)
                 )
                 reminders = cursor.fetchall()
-                
+
                 if not reminders:
                     self.bot.reply_to(
-                        message, 
+                        message,
                         _("⏳ No tienes recordatorios pendientes"),
                         reply_markup=self._get_main_menu()
                     )
                     return
-                    
+
                 response = _("⏰ *Tus recordatorios pendientes:*\n\n")
                 for reminder_id, text, reminder_time, recurrente in reminders:
                     recurrente_text = _("(Recurrente)") if recurrente else ""
                     response += _("🆔 {id}\n⏰ {time} {recurrent}\n📝 {text}\n\n").format(
                         id=reminder_id, time=reminder_time, recurrent=recurrente_text, text=text)
-                    
+
                 self.bot.reply_to(
-                    message, 
-                    response, 
+                    message,
+                    response,
                     parse_mode="Markdown",
                     reply_markup=self._get_main_menu()
                 )
-                
-            except Exception as e:
+
+            except Exception as e: # pylint: disable=broad-except
                 self.config.logger.error(f"Error en list_reminders: {str(e)}")
                 self.bot.reply_to(
                     message, 
@@ -757,28 +767,33 @@ class RecoNotasBot:
             try:
                 user_id = message.from_user.id
                 _ = self._get_user_translation(user_id)
-                
-                # Confirmación antes de eliminar
+
+                #Update: Confirmación antes de eliminar
                 markup = telebot.types.InlineKeyboardMarkup()
                 markup.row(
-                    telebot.types.InlineKeyboardButton(_("Sí, eliminar todo"), callback_data="confirm_clear"),
-                    telebot.types.InlineKeyboardButton(_("Cancelar"), callback_data="cancel_clear")
+                    telebot.types.InlineKeyboardButton(
+                        _("Sí, eliminar todo"), callback_data="confirm_clear"),
+                    telebot.types.InlineKeyboardButton(
+                        _("Cancelar"), callback_data="cancel_clear")
                 )
 
                 self.bot.reply_to(
                     message,
-                    _("⚠️ ¿Estás seguro que quieres eliminar TODOS tus datos?\nEsta acción no se puede deshacer."),
+                    _("⚠️ ¿Estás seguro que quieres eliminar TODOS tus datos?"
+                    "\nEsta acción no se puede deshacer."),
                     reply_markup=markup
                 )
-            except Exception as e:
+            except Exception as e: # pylint: disable=broad-except
                 self.config.logger.error(f"Error en clear_all_data: {str(e)}")
                 self.bot.reply_to(message, _("❌ Error al procesar la solicitud"))
 
-        @self.bot.callback_query_handler(func=lambda call: call.data in ['confirm_clear', 'cancel_clear'])
+        @self.bot.callback_query_handler(
+                func=lambda call: call.data in ['confirm_clear', 'cancel_clear']
+        )
         def handle_clear_confirmation(call):
             try:
                 _ = self._get_user_translation(call.from_user.id)
-                
+
                 if call.data == 'confirm_clear':
                     user_id = call.from_user.id
                     cursor = self.db.conn.cursor()
@@ -812,7 +827,7 @@ class RecoNotasBot:
                         message_id=call.message.message_id,
                         text=_("✅ Operación cancelada. Tus datos están seguros.")
                     )
-            except Exception as e:
+            except Exception as e: # pylint: disable=broad-except
                 self.db.conn.rollback()
                 self.config.logger.error(f"Error en handle_clear_confirmation: {str(e)}")
                 self.bot.answer_callback_query(
@@ -821,57 +836,57 @@ class RecoNotasBot:
                     show_alert=True
                 )
 
-#---------------------
+#--------------------- FIXING..
     def _process_note_step(self, message):
         """Procesa el texto de la nota recibido"""
         try:
             user_id = message.from_user.id
             note_text = message.text
             _ = self._get_user_translation(user_id)
-            
+
             if not note_text or len(note_text.strip()) == 0:
                 self.bot.reply_to(
-                    message, 
+                    message,
                     _("❌ El texto de la nota no puede estar vacío"),
                     reply_markup=self._get_main_menu()
                 )
                 return
-                
+
             if len(note_text) > 2000:
                 self.bot.reply_to(
-                    message, 
+                    message,
                     _("❌ La nota es demasiado larga (máximo 2000 caracteres)"),
                     reply_markup=self._get_main_menu()
                 )
                 return
-            
+
             cursor = self.db.conn.cursor()
             cursor.execute("SELECT id FROM usuarios WHERE telegram_id = ?", (user_id,))
             db_user_id = cursor.fetchone()[0]
-            
+
             encrypted_note = self.cifrado.cifrar(note_text)
             cursor.execute(
                 "INSERT INTO notas (usuario_id, contenido_cifrado) VALUES (?, ?)",
                 (db_user_id, encrypted_note)
             )
             self.db.conn.commit()
-            
+
             self.bot.reply_to(
-                message, 
+                message,
                 _("✅ Nota guardada correctamente"),
                 reply_markup=self._get_main_menu()
             )
-            
+
             self.db.registrar_auditoria(
                 db_user_id,
                 "NOTA_CREADA",
                 {"tamaño": len(note_text)}
             )
-        except Exception as e:
+        except Exception as e: # pylint: disable=broad-except
             self.db.conn.rollback()
             self.config.logger.error(f"Error en _process_note_step: {str(e)}")
             self.bot.reply_to(
-                message, 
+                message,
                 _("❌ Error al guardar la nota"),
                 reply_markup=self._get_main_menu()
             )
@@ -882,54 +897,54 @@ class RecoNotasBot:
             user_id = message.from_user.id
             selected_note = message.text
             _ = self._get_user_translation(user_id)
-            
+
             # Extraer el ID de la nota del texto seleccionado
             note_id = int(selected_note.split(":")[0])
-            
+
             cursor = self.db.conn.cursor()
             cursor.execute("SELECT id FROM usuarios WHERE telegram_id = ?", (user_id,))
             db_user_id = cursor.fetchone()[0]
-            
+
             # Verificar que la nota pertenece al usuario antes de eliminar
             cursor.execute(
                 "DELETE FROM notas WHERE id = ? AND usuario_id = ?",
                 (note_id, db_user_id)
             )
-            
+
             if cursor.rowcount == 0:
                 self.bot.reply_to(
-                    message, 
+                    message,
                     _("❌ La nota no existe o no tienes permisos para eliminarla"),
                     reply_markup=self._get_main_menu()
                 )
                 return
-                
+
             self.db.conn.commit()
-            
+
             self.bot.reply_to(
-                message, 
+                message,
                 _("✅ Nota {id} eliminada correctamente").format(id=note_id),
                 reply_markup=self._get_main_menu()
             )
-            
+
             # Registrar en auditoría
             self.db.registrar_auditoria(
                 db_user_id,
                 "NOTA_ELIMINADA",
                 {"nota_id": note_id}
             )
-            
+
         except ValueError:
             self.bot.reply_to(
-                message, 
+                message,
                 _("❌ Formato de selección inválido"),
                 reply_markup=self._get_main_menu()
             )
-        except Exception as e:
+        except Exception as e: # pylint: disable=broad-except
             self.db.conn.rollback()
             self.config.logger.error(f"Error en _process_delete_note_step: {str(e)}")
             self.bot.reply_to(
-                message, 
+                message,
                 _("❌ Error al eliminar la nota"),
                 reply_markup=self._get_main_menu()
             )
@@ -940,14 +955,14 @@ class RecoNotasBot:
             if not hasattr(message, 'text') or not message.text:
                 self.bot.reply_to(
                     message,
-                
+
                     ("❌ Debes proporcionar un texto para el recordatorio"),
                     reply_markup=self._get_main_menu()
                 )
                 return
-                
+
             reminder_text = message.text
-            
+
             msg = self.bot.reply_to(
                 message,
                 ("🕒 ¿A qué hora quieres que te lo recuerde? (Formato HH:MM, ej. 14:30)"),
@@ -957,7 +972,7 @@ class RecoNotasBot:
                 msg,
                 lambda m: self._process_reminder_time_step(m, reminder_text)
             )
-        except Exception as e:
+        except Exception as e: # pylint: disable=broad-except
             self.config.logger.error(f"Error en _process_reminder_text_step: {str(e)}")
             self.bot.reply_to(
                 message,
@@ -970,61 +985,66 @@ class RecoNotasBot:
         try:
             reminder_time = message.text
             _ = self._get_user_translation(message.from_user.id)
-            
+
             # Validar formato de hora
             try:
                 datetime.strptime(reminder_time, "%H:%M")
             except ValueError:
                 self.bot.reply_to(
-                    message, 
+                    message,
                     _("❌ Formato de hora inválido. Usa HH:MM (ej. 14:30)"),
                     reply_markup=self._get_main_menu()
                 )
                 return
-                
+
             cursor = self.db.conn.cursor()
             cursor.execute("SELECT id FROM usuarios WHERE telegram_id = ?", (message.from_user.id,))
             db_user_id = cursor.fetchone()[0]
-            
+
             cursor.execute(
                 "INSERT INTO recordatorios (usuario_id, texto, hora_recordatorio, recurrente) VALUES (?, ?, ?, ?)",
                 (db_user_id, reminder_text, reminder_time, recurrente)
             )
             reminder_id = cursor.lastrowid
             self.db.conn.commit()
-            
-            self._schedule_reminder(message.from_user.id, reminder_time, reminder_text, reminder_id, recurrente)
-            
+
+            self._schedule_reminder(
+                message.from_user.id, reminder_time, reminder_text, reminder_id, recurrente
+            )
+
             self.bot.reply_to(
-                message, 
+                message,
                 _("✅ Recordatorio programado para las {time}\n📝 Texto: {text}").format(
                     time=reminder_time, text=reminder_text),
                 reply_markup=self._get_main_menu()
             )
-            
+
             self.db.registrar_auditoria(
                 db_user_id,
                 "RECORDATORIO_CREADO",
-                {"hora": reminder_time, "tamaño_texto": len(reminder_text), "recurrente": recurrente}
+                {"hora": reminder_time, "tamaño_texto":
+                 len(reminder_text), "recurrente": recurrente}
             )
-        except Exception as e:
+        except Exception as e: # pylint: disable=broad-except
             self.db.conn.rollback()
             self.config.logger.error(f"Error en _process_reminder_time_step: {str(e)}")
             self.bot.reply_to(
-                message, 
+                message,
                 _("❌ Error al programar el recordatorio"),
                 reply_markup=self._get_main_menu()
             )
 
     def run(self):
         """Inicia el bot"""
-        self.config.logger.info("Iniciando RecoNotas Secure v2.3 con autenticación 2FA y multiidioma")
+        self.config.logger.info(
+            "Iniciando RecoNotas Secure v2.3 con autenticación 2FA y multiidioma"
+            )
         try:
             self.bot.polling(none_stop=True)
         except KeyboardInterrupt:
             self.config.logger.info("Bot detenido por el usuario")
             sys.exit(0)
-        except Exception as e:
+        except Exception as e: # pylint: disable=broad-except
             self.config.logger.critical(f"Error crítico: {str(e)}")
             sys.exit(1)
 
@@ -1038,6 +1058,6 @@ if __name__ == "__main__":
         print(f"❌ Error de configuración: {str(e)}")
         print("ℹ️ Asegúrate de tener un archivo .env con todas las variables requeridas")
         sys.exit(1)
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-except
         print(f"❌ Error inesperado: {str(e)}")
         sys.exit(1)
