@@ -244,6 +244,7 @@ class RecoNotasBot:
             '🗑 Eliminar Nota',
             '⏰ Añadir Recordatorio',
             '🔄 Listar Recordatorios',
+            '❌ Eliminar Recordatorio',
             '⚙️ Configuración'
         )
         return markup
@@ -266,6 +267,7 @@ class RecoNotasBot:
         except Exception as e: # pylint: disable=broad-except
             self.config.logger.error(f"Error cargando recordatorios: {str(e)}")
 
+#----------------------------
     def _schedule_reminder(self, user_id, reminder_time, text, reminder_id=None, recurrente=False):
         """Programa un recordatorio para enviarse a la hora especificada"""
         try:
@@ -328,7 +330,7 @@ class RecoNotasBot:
             if (user_id, text) in self.active_reminders:
                 del self.active_reminders[(user_id, text)]
 
-#--------------------- FIXING...
+#--------------------- FIXED...
 
     def _setup_handlers(self):
         @self.bot.message_handler(commands=['start', 'help', 'menu'])
@@ -379,11 +381,12 @@ class RecoNotasBot:
             self.config.logger.error(f"Error en verify_2fa: {str(e)}")
             self.bot.reply_to(message, "❌ Error en autenticación")
 
+#------------------Menu de comandos--------------
     def _show_main_menu(self, message, db_user_id):
         """Muestra el menú principal al usuario"""
         _ = self._get_user_translation(message.from_user.id)
         welcome_msg = _(
-            "🔐 *Bienvenido a RecoNotas Seguro*\n\n"
+            "🔐 *Bienvenido a RecoNotas v2.5-beta*\n\n"
             "📝 **Selecciona una opción del menú:**\n"
             "O usa los comandos tradicionales si lo prefieres"
         )
@@ -765,6 +768,51 @@ class RecoNotasBot:
                     reply_markup=self._get_main_menu()
                 )
 
+        @self.bot.message_handler(commands=['deletereminder', 'delreminder'])
+        def delete_reminder(message):
+            try:
+                user_id = message.from_user.id
+                _ = self._get_user_translation(user_id)
+
+                cursor = self.db.conn.cursor()
+                cursor.execute("SELECT id FROM usuarios WHERE telegram_id = ?", (user_id,))
+                db_user_id = cursor.fetchone()[0]
+
+                cursor.execute(
+                    """SELECT id, texto, hora_recordatorio 
+                    FROM recordatorios 
+                    WHERE usuario_id = ? AND completado = 0""",
+                    (db_user_id,)
+                )
+                reminders = cursor.fetchall()
+
+                if not reminders:
+                    self.bot.reply_to(
+                        message,
+                        _("⏳ No tienes recordatorios pendientes para eliminar"),
+                        reply_markup=self._get_main_menu()
+                    )
+                    return
+
+                markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
+                for reminder_id, text, reminder_time in reminders:
+                    display_text = f"{reminder_id}: {text} @ {reminder_time}"
+                    markup.add(display_text)
+
+                msg = self.bot.reply_to(
+                    message,
+                    _("🗑 Selecciona el recordatorio que deseas eliminar:"),
+                    reply_markup=markup
+                )
+                self.bot.register_next_step_handler(msg, self._process_delete_reminder_step)
+            except Exception as e: # pylint: disable=broad-except
+                self.config.logger.error(f"Error en delete_reminder: {str(e)}")
+                self.bot.reply_to(
+                    message,
+                    _("❌ Error al listar recordatorios para eliminar"),
+                    reply_markup=self._get_main_menu()
+                )
+
         @self.bot.message_handler(commands=['clearall'])
         def clear_all_data(message):
             try:
@@ -838,8 +886,73 @@ class RecoNotasBot:
                     _("❌ Error al eliminar datos"),
                     show_alert=True
                 )
+#------------------------------------------------
+    def _process_delete_reminder_step(self, message):
+        """Procesa la selección de recordatorio a eliminar"""
+        try:
+            user_id = message.from_user.id
+            selected_reminder = message.text
+            _ = self._get_user_translation(user_id)
 
-#--------------------- FIXING..
+            # Extraer el ID del recordatorio del texto seleccionado
+            reminder_id = int(selected_reminder.split(":")[0])
+
+            cursor = self.db.conn.cursor()
+            cursor.execute("SELECT id FROM usuarios WHERE telegram_id = ?", (user_id,))
+            db_user_id = cursor.fetchone()[0]
+
+            # Cancelar el recordatorio si está programado
+            for (uid, text), timer in list(self.active_reminders.items()):
+                if uid == user_id:
+                    cursor.execute("SELECT id FROM recordatorios WHERE id = ?", (reminder_id,))
+                    if cursor.fetchone():
+                        timer.cancel()
+                        del self.active_reminders[(uid, text)]
+
+            # Eliminar de la base de datos
+            cursor.execute(
+                "DELETE FROM recordatorios WHERE id = ? AND usuario_id = ?",
+                (reminder_id, db_user_id)
+            )
+
+            if cursor.rowcount == 0:
+                self.bot.reply_to(
+                    message,
+                    _("❌ El recordatorio no existe o no tienes permisos para eliminarlo"),
+                    reply_markup=self._get_main_menu()
+                )
+                return
+
+            self.db.conn.commit()
+
+            self.bot.reply_to(
+                message,
+                _("✅ Recordatorio {id} eliminado correctamente").format(id=reminder_id),
+                reply_markup=self._get_main_menu()
+            )
+
+            # Registrar en auditoría
+            self.db.registrar_auditoria(
+                db_user_id,
+                "RECORDATORIO_ELIMINADO",
+                {"reminder_id": reminder_id}
+            )
+
+        except ValueError:
+            self.bot.reply_to(
+                message,
+                _("❌ Formato de selección inválido"),
+                reply_markup=self._get_main_menu()
+            )
+        except Exception as e: # pylint: disable=broad-except
+            self.db.conn.rollback()
+            self.config.logger.error(f"Error en _process_delete_reminder_step: {str(e)}")
+            self.bot.reply_to(
+                message,
+                _("❌ Error al eliminar el recordatorio"),
+                reply_markup=self._get_main_menu()
+            )
+#--------------------- FIXED..
     def _process_note_step(self, message):
         """Procesa el texto de la nota recibido"""
         try:

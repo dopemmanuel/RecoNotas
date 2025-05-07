@@ -7,7 +7,7 @@
 
 **El bot definitivo** para gestión de notas y recordatorios con cifrado de grado militar y menú interactivo.
 
-## ✨ Novedades en v2.2
+## ✨ Novedades en v2.5
 ✅ **Menú completo con teclado interactivo**  
 ✅ **Limpieza automática de consola**  
 ✅ **Soporte mejorado para Markdown**  
@@ -44,12 +44,22 @@
 | `/backup` | Respaldar datos |  
 
 ### Arquitectura de Seguridad
-```mermaid LR
-    A[Usuario] --> B[API Telegram]
-    B --> C{Cifrado AES-256}
-    C --> D[(SQLite Seguro)]
-    C --> E[S3 Backup]
-    D --> F[Registro Auditoría]
+```mermaid
+graph TD
+        A[main.py] --> B[core/bot.py]
+    B --> C[models/config.py]
+    B --> D[models/database.py]
+    B --> E[models/encryption.py]
+    B --> F[handlers/commands.py]
+    F --> G[services/reminder_service.py]
+    
+    style A fill:#4CAF50,stroke:#388E3C
+    style B fill:#2196F3,stroke:#1976D2
+    style C fill:#FFC107,stroke:#FFA000
+    style D fill:#FFC107,stroke:#FFA000
+    style E fill:#FFC107,stroke:#FFA000
+    style F fill:#9C27B0,stroke:#7B1FA2
+    style G fill:#607D8B,stroke:#455A64
 ```
 
 ## 🛠️ Instalación Rápida  
