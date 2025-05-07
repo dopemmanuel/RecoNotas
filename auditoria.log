@@ -1,0 +1,48 @@
+2025-03-26 19:26:52,352 - SecureBot - INFO - Iniciando RecoNotas Secure v2.1
+2025-03-26 19:28:15,605 - SecureBot - INFO - Iniciando RecoNotas Secure v2.1
+2025-03-27 16:17:29,878 - SecureBot - INFO - Iniciando RecoNotas Secure v2.1
+2025-03-27 16:17:30,255 - root - ERROR - Error en auditoría: FOREIGN KEY constraint failed
+2025-03-27 16:17:30,256 - SecureBot - ERROR - Error de base de datos: FOREIGN KEY constraint failed
+2025-04-10 15:44:01,636 - SecureBot - INFO - Iniciando RecoNotas Secure v2.1
+2025-04-10 15:48:18,844 - SecureBot - INFO - Iniciando RecoNotas Secure v2.1
+2025-04-10 15:48:33,164 - root - ERROR - Error en auditoría: FOREIGN KEY constraint failed
+2025-04-10 15:48:33,166 - SecureBot - ERROR - Error de base de datos: FOREIGN KEY constraint failed
+2025-04-10 15:48:42,326 - root - ERROR - Error en auditoría: FOREIGN KEY constraint failed
+2025-04-10 15:48:42,327 - SecureBot - ERROR - Error de base de datos: FOREIGN KEY constraint failed
+2025-04-10 15:48:46,640 - root - ERROR - Error en auditoría: FOREIGN KEY constraint failed
+2025-04-10 15:48:46,641 - SecureBot - ERROR - Error de base de datos: FOREIGN KEY constraint failed
+2025-04-10 15:54:04,628 - SecureBot - INFO - Iniciando RecoNotas Secure v2.1
+2025-04-10 15:54:11,336 - root - ERROR - Error en auditoría: FOREIGN KEY constraint failed
+2025-04-10 15:54:11,337 - SecureBot - ERROR - Error de base de datos: FOREIGN KEY constraint failed
+2025-04-15 21:13:03,545 - SecureBot - INFO - Iniciando RecoNotas Secure v2.1
+2025-04-15 21:13:42,948 - root - ERROR - Error en auditoría: FOREIGN KEY constraint failed
+2025-04-15 21:13:42,949 - SecureBot - ERROR - Error de base de datos: FOREIGN KEY constraint failed
+2025-04-15 21:14:20,238 - root - ERROR - Error en auditoría: FOREIGN KEY constraint failed
+2025-04-15 21:14:20,238 - SecureBot - ERROR - Error de base de datos: FOREIGN KEY constraint failed
+2025-04-15 21:14:48,805 - SecureBot - INFO - Iniciando RecoNotas Secure v2.1
+2025-04-15 21:14:50,908 - root - ERROR - Error en auditoría: FOREIGN KEY constraint failed
+2025-04-15 21:14:50,909 - SecureBot - ERROR - Error de base de datos: FOREIGN KEY constraint failed
+2025-04-15 21:29:17,033 - SecureBot - INFO - Iniciando RecoNotas Secure v2.1
+2025-04-15 21:58:37,055 - SecureBot - CRITICAL - Error crítico inesperado: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2025-04-15 22:15:59,352 - SecureBot - INFO - Iniciando RecoNotas Secure v2.1
+2025-04-15 22:32:57,457 - SecureBot - INFO - Iniciando RecoNotas Secure v2.2 con menú de botones
+2025-04-15 22:33:20,361 - SecureBot - INFO - Nuevo inicio de sesión: ᚛ᚒSᚒᚐᚏᚔUᚑ᚜×D
+2025-04-15 23:32:55,780 - SecureBot - ERROR - Error cargando recordatorios: no such column: r.recurrente
+2025-04-15 23:32:55,799 - SecureBot - INFO - Iniciando RecoNotas Secure v2.3 con autenticación 2FA y multiidioma
+2025-04-15 23:33:03,114 - SecureBot - ERROR - Error en send_welcome: table usuarios has no column named lenguaje
+2025-04-15 23:33:06,188 - SecureBot - ERROR - Error en send_welcome: table usuarios has no column named lenguaje
+2025-04-16 00:25:40,978 - SecureBot - ERROR - Error cargando recordatorios: no such column: r.recurrente
+2025-04-16 00:25:40,996 - SecureBot - INFO - Iniciando RecoNotas Secure v2.3 con autenticación 2FA y multiidioma
+2025-04-16 00:26:16,297 - SecureBot - ERROR - Error en send_welcome: table usuarios has no column named lenguaje
+2025-04-16 00:38:24,718 - SecureBot - CRITICAL - Error crítico: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2025-04-16 16:28:28,069 - SecureBot - ERROR - Error cargando recordatorios: no such column: r.recurrente
+2025-04-16 16:28:28,089 - SecureBot - INFO - Iniciando RecoNotas Secure v2.3 con autenticación 2FA y multiidioma
+2025-04-16 16:29:11,467 - SecureBot - ERROR - Error en send_welcome: table usuarios has no column named lenguaje
+2025-04-16 16:50:19,219 - SecureBot - INFO - Iniciando RecoNotas Secure v2.3 con autenticación 2FA y multiidioma
+2025-04-16 16:50:49,189 - SecureBot - CRITICAL - Error crítico: RecoNotasBot._process_reminder_text_step() got an unexpected keyword argument 'db_user_id'
+2025-05-05 11:36:26,616 - SecureBot - INFO - Iniciando RecoNotas Secure v2.3 con autenticación 2FA y multiidioma
+2025-05-05 13:02:24,433 - SecureBot - CRITICAL - Error crítico: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2025-05-05 13:37:58,803 - SecureBot - INFO - Iniciando RecoNotas Secure v2.3 con autenticación 2FA y multiidioma
+2025-05-07 16:23:50,723 - SecureBot - INFO - Iniciando RecoNotas Secure v2.3 con autenticación 2FA y multiidioma
+2025-05-07 16:54:34,348 - SecureBot - INFO - Iniciando RecoNotas Secure v2.3
+2025-05-07 16:57:26,323 - SecureBot - INFO - Iniciando RecoNotas Secure v2.3 con autenticación 2FA y multiidioma

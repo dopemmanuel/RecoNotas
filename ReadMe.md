@@ -1,70 +1,48 @@
-# 📝 RecoNotas - Tu asistente personal en Telegram  
+# 📝 RecoNotas - Your Personal Telegram Assistant  
 
-**RecoNotas** es un bot avanzado de Telegram diseñado para gestionar notas, recordatorios con notificaciones push y organización de tareas. ¡Mantén tu vida organizada con simples comandos!
+**RecoNotas** is an advanced Telegram bot designed for note-taking, push notification reminders, and task organization. Keep your life organized with simple commands!
 
-![Bot Demo](https://img.shields.io/badge/Status-Activo-brightgreen) 
+![Status](https://img.shields.io/badge/Status-Active-brightgreen) 
 ![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
 ![Telegram](https://img.shields.io/badge/Telegram-Bot_API-26A5E4)
 
+<<<<<<< HEAD
+## 🌟 Key Features  
+=======
 
 ## 🌟 Características Principales  
+>>>>>>> origin/main
 
-| Función | Descripción |  
-|---------|-------------|  
-| **📝 Notas inteligentes** | Guarda ideas rápidamente con formato Markdown |  
-| **🔔 Recordatorios con notificaciones** | Alertas push en la hora exacta (formato HH:MM) |  
-| **🗂 Organización intuitiva** | Accede a tus notas y recordatorios desde cualquier dispositivo |  
-| **⚡ Comandos rápidos** | Interacción optimizada para móvil y desktop |  
+| Feature               | Description                                  |
+|-----------------------|----------------------------------------------|
+| **📝 Smart Notes**    | Save ideas quickly with Markdown formatting  |
+| **🔔 Push Reminders** | Get precise timed alerts (HH:MM format)      |
+| **🗂 Organization**   | Access notes/reminders from any device       |
+| **⚡ Quick Commands** | Mobile-optimized interaction                 |
 
-## 🛠 Comandos Disponibles  
+## 🛠 Available Commands  
 
-| Comando | Descripción | Ejemplo |  
-|---------|-------------|---------|  
-| `/start` | Muestra el menú principal | `/start` |  
-| `/addnote` | Añade una nueva nota | `/addnote` → "Comprar leche" |  
-| `/listnotes` | Lista todas tus notas | `/listnotes` |  
-| `/deletenote` | Elimina una nota específica | `/deletenote` → [Seleccionar] |  
-| `/addreminder` | Programa recordatorio con notificación | `/addreminder` → "Reunión" → "14:30" |  
-| `/listreminders` | Muestra tus recordatorios activos | `/listreminders` |  
-| `/clearall` | Borra todos tus datos | `/clearall` (Confirmación) |  
-| `/stop` | Pausa el bot temporalmente | `/stop` |  
+| Command            | Description                          | Example                     |
+|--------------------|--------------------------------------|-----------------------------|
+| `/start`           | Shows main menu                      | `/start`                    |
+| `/addnote`         | Adds a new note                      | `/addnote Buy milk`         |
+| `/listnotes`       | Lists all notes                      | `/listnotes`                |
+| `/deletenote`      | Deletes specific note                | `/deletenote [Select]`      |
+| `/addreminder`     | Schedules reminder                   | `/addreminder Meeting 14:30`|
+| `/listreminders`   | Shows active reminders               | `/listreminders`            |
+| `/clearall`        | Clears all data (with confirmation)  | `/clearall`                 |
+| `/stop`            | Temporarily pauses the bot           | `/stop`                     |
 
+### 🔄 Recent Improvements
 
-### Mejoras incorporadas o Actualizadas:
+1. **Modern UI** with badges and organized tables *(Updated)*  
+2. **Push notifications** with technical details *(Added)*  
+3. **Command examples** with visual guide *(Enhanced)*  
+4. **Requirements section** for easy setup *(Added)*  
+5. **Markdown support** in all notes *(Fixed)*  
 
-1. **Formato moderno** con badges y tablas organizadas(Actualizado!!)
-2. **Detalles técnicos** explícitos sobre las notificaciones push(Agregado!!)
-3. **Guía visual** con ejemplos de comandos(Actualizado!!)
-4. **Sección de requisitos** clara(Agregado!!)
-5. **Call-to-action** para invitar al bot(Agregado!!)
-6. **Soporte para Markdown** en las notas(Correjido)
-7. **Espaciado mejorado** para mejor legibilidad(Mejorado!!) 
-
-## 🚀 Guía Rápida  
-
-1. **Primeros pasos**  
-   ```bash
-   /start
-
-### **Requisitos**
-
-- **Python 3.8 o superior**.
-- **Librerías necesarias**:
-  - `python-telegram-bot`
-  - `python-dotenv`
-  - `sqlite3`
-
-Instala las dependencias con el siguiente comando:
+## 🚀 Quick Start
 
 ```bash
-pip install python-telegram-bot python-dotenv
-```
-
-[Click aqui para ver las preguntas](https://github.com/dopemmanuel/RecoNotas/blob/main/preguntas.md)
-
-
-
-
-
-
+/start  # Initialize the bot
 

@@ -1,197 +1,21 @@
+""" 
+Comment
 """
-RECONOTAS v2.5 <- 2.3 RELOADED Bot de Telegram seguro y optimizado 
-con autenticación 2FA y multiidioma
-"""
-
-# -*- coding: utf-8 -*-
-
-# ------------------------- IMPORTS -------------------------
 import os
 import sys
-import io
-import json
-import logging
-import sqlite3
 import gettext
-from threading import Lock, Timer
 from datetime import datetime, timedelta
-import base64
 from functools import partial
-from pathlib import Path
-from dotenv import load_dotenv
+from threading import Timer
 import telebot
 import pyotp
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+# # Cambio necesario: Importar las clases desde los nuevos archivos
+from models.Config import Config
+from models.database import SecureDB
+from models.encryption import CifradoManager
 
 
-# ------------------------- CONFIGURACIÓN -------------------------
-class Config:
-    """
-    Contiene la configuración interna para el bot
-    """
-
-    def __init__(self):
-        # Configuración de encoding
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
-
-        load_dotenv()
-
-        # Verificación detallada de variables de entorno
-        self.api_token = os.getenv("TELEGRAM_BOT_TOKEN")
-        if not self.api_token:
-            raise ValueError("❌ TELEGRAM_BOT_TOKEN no está configurado en el archivo .env")
-
-        salt = os.getenv("ENCRYPTION_SALT")
-        if not salt:
-            raise ValueError("❌ ENCRYPTION_SALT no está configurado en el archivo .env")
-        self.salt = salt.encode()
-
-        self.clave_maestra = os.getenv("ENCRYPTION_MASTER_PASSWORD")
-        if not self.clave_maestra:
-            raise ValueError("❌ ENCRYPTION_MASTER_PASSWORD no está configurado en el archivo .env")
-
-        # Configuración de internacionalización
-        self.locales_dir = Path(__file__).parent / 'locales'
-        self.supported_langs = ['es', 'en', 'pt']
-        self.default_lang = 'es'
-
-        # Configuración 2FA
-        self.totp_secret = os.getenv("TOTP_SECRET", pyotp.random_base32())
-
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            handlers=[
-                logging.FileHandler("auditoria.log", encoding='utf-8'),
-                logging.StreamHandler(sys.stdout)
-            ]
-        )
-        self.logger = logging.getLogger("SecureBot")
-
-# ------------------------- CIFRADO -------------------------
-class CifradoManager:
-    """Crea un cifrado para encriptar info sensible"""
-    def __init__(self, salt: bytes, master_password: str):
-        self.cipher = self._configurar_cifrado(salt, master_password)
-
-    def _configurar_cifrado(self, salt: bytes, password: str) -> Fernet:
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA512(),
-            length=32,
-            salt=salt,
-            iterations=480000,
-        )
-        key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
-        return Fernet(key)
-
-    def cifrar(self, texto: str) -> bytes:
-        """Cifra un texto plano usando la clave maestra configurada."""
-        return self.cipher.encrypt(texto.encode('utf-8'))
-
-    def descifrar(self, datos: bytes) -> str:
-        """Descifra datos previamente cifrados usando la clave maestra configurada."""
-        try:
-            return self.cipher.decrypt(datos).decode('utf-8')
-        except Exception as e:
-            raise ValueError(f"Error de descifrado: {str(e)}") from e
-
-# ------------------------- BASE DE DATOS -------------------------
-class SecureDB:
-    """Implementa una conexión segura y gestionada a la base de datos SQLite."""
-    _instance = None
-    _lock = Lock()
-
-    def __init__(self):
-        self.conn = None
-        self._initialize_db()
-
-    @classmethod
-    def get_instance(cls):
-        """Obtiene la única instancia de la clase SecureDB (patrón Singleton)."""
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = cls()
-        return cls._instance
-
-    def _initialize_db(self):
-        try:
-            self.conn = sqlite3.connect("secure_reconotas.db", check_same_thread=False)
-            self.conn.execute("PRAGMA journal_mode=WAL")
-            self.conn.execute("PRAGMA foreign_keys=ON")
-            self._create_tables()
-        except sqlite3.Error as e:
-            logging.error("Error al inicializar la base de datos: %s", str(e))
-            raise
-
-    def _create_tables(self):
-        tables = [
-            """CREATE TABLE IF NOT EXISTS usuarios (
-                id INTEGER PRIMARY KEY,
-                telegram_id INTEGER UNIQUE NOT NULL,
-                fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                lenguaje TEXT DEFAULT 'es',
-                consentimiento_gdpr BOOLEAN DEFAULT 0
-            )""",
-            """CREATE TABLE IF NOT EXISTS auditoria (
-                id INTEGER PRIMARY KEY,
-                usuario_id INTEGER NOT NULL,
-                tipo_evento TEXT NOT NULL,
-                detalles TEXT NOT NULL,
-                fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
-            )""",
-            """CREATE TABLE IF NOT EXISTS notas (
-                id INTEGER PRIMARY KEY,
-                usuario_id INTEGER NOT NULL,
-                contenido_cifrado BLOB NOT NULL,
-                fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                fecha_modificacion TIMESTAMP,
-                FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
-            )""",
-            """CREATE TABLE IF NOT EXISTS recordatorios (
-                id INTEGER PRIMARY KEY,
-                usuario_id INTEGER NOT NULL,
-                texto TEXT NOT NULL,
-                hora_recordatorio TEXT NOT NULL,
-                recurrente BOOLEAN DEFAULT 0,
-                fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                completado BOOLEAN DEFAULT 0,
-                FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
-            )""",
-            """CREATE TABLE IF NOT EXISTS auth_2fa (
-                usuario_id INTEGER PRIMARY KEY,
-                secret TEXT NOT NULL,
-                activado BOOLEAN DEFAULT 0,
-                FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
-            )"""
-        ]
-
-        try:
-            cursor = self.conn.cursor()
-            for table in tables:
-                cursor.execute(table)
-            self.conn.commit()
-        except sqlite3.Error as e:
-            logging.error("Error al crear tablas: %s", str(e))
-            raise
-
-    def registrar_auditoria(self, usuario_id: int, tipo_evento: str, detalles: dict):
-        """Registra un evento de auditoría en la base de datos de forma segura."""
-        try:
-            self.conn.execute(
-                """INSERT INTO auditoria 
-                (usuario_id, tipo_evento, detalles) 
-                VALUES (?, ?, ?)""",
-                (usuario_id, tipo_evento, json.dumps(detalles))
-            )
-            self.conn.commit()
-        except sqlite3.Error as e:
-            logging.error("Error en auditoría: %s", str(e))
-            raise
 
 # ------------------------- BOT PRINCIPAL -------------------------
 class RecoNotasBot:
@@ -380,13 +204,12 @@ class RecoNotasBot:
         except Exception as e: # pylint: disable=broad-except
             self.config.logger.error(f"Error en verify_2fa: {str(e)}")
             self.bot.reply_to(message, "❌ Error en autenticación")
-
-#------------------Menu de comandos--------------
+#------------------Menu con los botones--------------
     def _show_main_menu(self, message, db_user_id):
         """Muestra el menú principal al usuario"""
         _ = self._get_user_translation(message.from_user.id)
         welcome_msg = _(
-            "🔐 *Bienvenido a RecoNotas v2.5-beta*\n\n"
+            "🔐 *Bienvenido a RecoNotas v2.5_beta*\n\n"
             "📝 **Selecciona una opción del menú:**\n"
             "O usa los comandos tradicionales si lo prefieres"
         )
@@ -767,7 +590,6 @@ class RecoNotasBot:
                     _("❌ Error al listar los recordatorios"),
                     reply_markup=self._get_main_menu()
                 )
-
         @self.bot.message_handler(commands=['deletereminder', 'delreminder'])
         def delete_reminder(message):
             try:
@@ -886,72 +708,7 @@ class RecoNotasBot:
                     _("❌ Error al eliminar datos"),
                     show_alert=True
                 )
-#------------------------------------------------
-    def _process_delete_reminder_step(self, message):
-        """Procesa la selección de recordatorio a eliminar"""
-        try:
-            user_id = message.from_user.id
-            selected_reminder = message.text
-            _ = self._get_user_translation(user_id)
 
-            # Extraer el ID del recordatorio del texto seleccionado
-            reminder_id = int(selected_reminder.split(":")[0])
-
-            cursor = self.db.conn.cursor()
-            cursor.execute("SELECT id FROM usuarios WHERE telegram_id = ?", (user_id,))
-            db_user_id = cursor.fetchone()[0]
-
-            # Cancelar el recordatorio si está programado
-            for (uid, text), timer in list(self.active_reminders.items()):
-                if uid == user_id:
-                    cursor.execute("SELECT id FROM recordatorios WHERE id = ?", (reminder_id,))
-                    if cursor.fetchone():
-                        timer.cancel()
-                        del self.active_reminders[(uid, text)]
-
-            # Eliminar de la base de datos
-            cursor.execute(
-                "DELETE FROM recordatorios WHERE id = ? AND usuario_id = ?",
-                (reminder_id, db_user_id)
-            )
-
-            if cursor.rowcount == 0:
-                self.bot.reply_to(
-                    message,
-                    _("❌ El recordatorio no existe o no tienes permisos para eliminarlo"),
-                    reply_markup=self._get_main_menu()
-                )
-                return
-
-            self.db.conn.commit()
-
-            self.bot.reply_to(
-                message,
-                _("✅ Recordatorio {id} eliminado correctamente").format(id=reminder_id),
-                reply_markup=self._get_main_menu()
-            )
-
-            # Registrar en auditoría
-            self.db.registrar_auditoria(
-                db_user_id,
-                "RECORDATORIO_ELIMINADO",
-                {"reminder_id": reminder_id}
-            )
-
-        except ValueError:
-            self.bot.reply_to(
-                message,
-                _("❌ Formato de selección inválido"),
-                reply_markup=self._get_main_menu()
-            )
-        except Exception as e: # pylint: disable=broad-except
-            self.db.conn.rollback()
-            self.config.logger.error(f"Error en _process_delete_reminder_step: {str(e)}")
-            self.bot.reply_to(
-                message,
-                _("❌ Error al eliminar el recordatorio"),
-                reply_markup=self._get_main_menu()
-            )
 #--------------------- FIXED..
     def _process_note_step(self, message):
         """Procesa el texto de la nota recibido"""
@@ -1096,6 +853,72 @@ class RecoNotasBot:
                 reply_markup=self._get_main_menu()
             )
 
+    def _process_delete_reminder_step(self, message):
+        """Procesa la selección de recordatorio a eliminar"""
+        try:
+            user_id = message.from_user.id
+            selected_reminder = message.text
+            _ = self._get_user_translation(user_id)
+
+            # Extraer el ID del recordatorio del texto seleccionado
+            reminder_id = int(selected_reminder.split(":")[0])
+
+            cursor = self.db.conn.cursor()
+            cursor.execute("SELECT id FROM usuarios WHERE telegram_id = ?", (user_id,))
+            db_user_id = cursor.fetchone()[0]
+
+            # Cancelar el recordatorio si está programado
+            for (uid, text), timer in list(self.active_reminders.items()):
+                if uid == user_id:
+                    cursor.execute("SELECT id FROM recordatorios WHERE id = ?", (reminder_id,))
+                    if cursor.fetchone():
+                        timer.cancel()
+                        del self.active_reminders[(uid, text)]
+
+            # Eliminar de la base de datos
+            cursor.execute(
+                "DELETE FROM recordatorios WHERE id = ? AND usuario_id = ?",
+                (reminder_id, db_user_id)
+            )
+
+            if cursor.rowcount == 0:
+                self.bot.reply_to(
+                    message,
+                    _("❌ El recordatorio no existe o no tienes permisos para eliminarlo"),
+                    reply_markup=self._get_main_menu()
+                )
+                return
+
+            self.db.conn.commit()
+
+            self.bot.reply_to(
+                message,
+                _("✅ Recordatorio {id} eliminado correctamente").format(id=reminder_id),
+                reply_markup=self._get_main_menu()
+            )
+
+            # Registrar en auditoría
+            self.db.registrar_auditoria(
+                db_user_id,
+                "RECORDATORIO_ELIMINADO",
+                {"reminder_id": reminder_id}
+            )
+
+        except ValueError:
+            self.bot.reply_to(
+                message,
+                _("❌ Formato de selección inválido"),
+                reply_markup=self._get_main_menu()
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            self.db.conn.rollback()
+            self.config.logger.error(f"Error en _process_delete_reminder_step: {str(e)}")
+            self.bot.reply_to(
+                message,
+                _("❌ Error al eliminar el recordatorio"),
+                reply_markup=self._get_main_menu()
+            )
+
     def _process_reminder_time_step(self, message, reminder_text, recurrente=False):
         """Procesa la hora del recordatorio y lo guarda"""
         try:
@@ -1164,16 +987,12 @@ class RecoNotasBot:
             self.config.logger.critical(f"Error crítico: {str(e)}")
             sys.exit(1)
 
-# ------------------------- EJECUCIÓN -------------------------
-if __name__ == "__main__":
-    try:
-        config_instance = Config()
-        bot = RecoNotasBot(config_instance)
-        bot.run()
-    except ValueError as e:
-        print(f"❌ Error de configuración: {str(e)}")
-        print("ℹ️ Asegúrate de tener un archivo .env con todas las variables requeridas")
-        sys.exit(1)
-    except Exception as e: # pylint: disable=broad-except
-        print(f"❌ Error inesperado: {str(e)}")
-        sys.exit(1)
+        self.config.logger.info("Iniciando RecoNotas Secure v2.3")
+        try:
+            self.bot.polling(none_stop=True)
+        except KeyboardInterrupt:
+            self.config.logger.info("Bot detenido por el usuario")
+            sys.exit(0)
+        except Exception as e: # pylint: disable=broad-except
+            self.config.logger.critical(f"Error crítico: {str(e)}")
+            sys.exit(1)
