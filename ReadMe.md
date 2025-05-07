@@ -1,48 +1,103 @@
-# 📝 RecoNotas - Your Personal Telegram Assistant  
+# 🤖 RecoNotas Bot - Tu asistente organizacional en Telegram  
 
-**RecoNotas** is an advanced Telegram bot designed for note-taking, push notification reminders, and task organization. Keep your life organized with simple commands!
+![Versión](https://img.shields.io/badge/Versión-2.2-blue) 
+![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB)
+![Licencia](https://img.shields.io/badge/Licencia-MIT-green)
+![Estado](https://img.shields.io/badge/Estado-Producción-brightgreen)
 
-![Status](https://img.shields.io/badge/Status-Active-brightgreen) 
-![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
-![Telegram](https://img.shields.io/badge/Telegram-Bot_API-26A5E4)
+**El bot definitivo** para gestión de notas y recordatorios con cifrado de grado militar y menú interactivo.
 
-<<<<<<< HEAD
-## 🌟 Key Features  
-=======
+## ✨ Novedades en v2.5
+✅ **Menú completo con teclado interactivo**  
+✅ **Limpieza automática de consola**  
+✅ **Soporte mejorado para Markdown**  
+✅ **Sistema de recordatorios optimizado**  
+✅ **Nuevos comandos rápidos**  
 
-## 🌟 Características Principales  
->>>>>>> origin/main
+## 🎯 Características Principales  
 
-| Feature               | Description                                  |
-|-----------------------|----------------------------------------------|
-| **📝 Smart Notes**    | Save ideas quickly with Markdown formatting  |
-| **🔔 Push Reminders** | Get precise timed alerts (HH:MM format)      |
-| **🗂 Organization**   | Access notes/reminders from any device       |
-| **⚡ Quick Commands** | Mobile-optimized interaction                 |
+| 🔐 Seguridad | 🚀 Productividad | 💡 Usabilidad |
+|-------------|----------------|--------------|
+| Cifrado AES-256 | Notas con formato | Interfaz intuitiva |
+| Autenticación 2FA | Recordatorios programables | Menú contextual |
+| GDPR Compliant | Sincronización en la nube | Soporte multiidioma |
 
-## 🛠 Available Commands  
+## 📲 Comandos Esenciales  
 
-| Command            | Description                          | Example                     |
-|--------------------|--------------------------------------|-----------------------------|
-| `/start`           | Shows main menu                      | `/start`                    |
-| `/addnote`         | Adds a new note                      | `/addnote Buy milk`         |
-| `/listnotes`       | Lists all notes                      | `/listnotes`                |
-| `/deletenote`      | Deletes specific note                | `/deletenote [Select]`      |
-| `/addreminder`     | Schedules reminder                   | `/addreminder Meeting 14:30`|
-| `/listreminders`   | Shows active reminders               | `/listreminders`            |
-| `/clearall`        | Clears all data (with confirmation)  | `/clearall`                 |
-| `/stop`            | Temporarily pauses the bot           | `/stop`                     |
+### 📝 Gestión de Notas
+| Comando | Acción | Ejemplo |
+|---------|--------|---------|
+| `/newnote` | Crear nota | `/newnote Comprar leche` |
+| `/mynotes` | Listar notas | `/mynotes` |
+| `/delnote` | Eliminar nota | `/delnote 3` |
 
-### 🔄 Recent Improvements
+### ⏰ Recordatorios  
+| Comando | Acción | Formato |
+|---------|--------|---------|
+| `/newreminder` | Nuevo recordatorio | `/newreminder Reunión 15:30` |
+| `/myreminders` | Listar recordatorios | `/myreminders` |
 
-1. **Modern UI** with badges and organized tables *(Updated)*  
-2. **Push notifications** with technical details *(Added)*  
-3. **Command examples** with visual guide *(Enhanced)*  
-4. **Requirements section** for easy setup *(Added)*  
-5. **Markdown support** in all notes *(Fixed)*  
+### ⚙️ Configuración  
+| Comando | Función |  
+|---------|---------|  
+| `/settings` | Preferencias de usuario |  
+| `/backup` | Respaldar datos |  
 
-## 🚀 Quick Start
+### Arquitectura de Seguridad
+```mermaid
+graph TD
+        A[main.py] --> B[core/bot.py]
+    B --> C[models/config.py]
+    B --> D[models/database.py]
+    B --> E[models/encryption.py]
+    B --> F[handlers/commands.py]
+    F --> G[services/reminder_service.py]
+    
+    style A fill:#4CAF50,stroke:#388E3C
+    style B fill:#2196F3,stroke:#1976D2
+    style C fill:#FFC107,stroke:#FFA000
+    style D fill:#FFC107,stroke:#FFA000
+    style E fill:#FFC107,stroke:#FFA000
+    style F fill:#9C27B0,stroke:#7B1FA2
+    style G fill:#607D8B,stroke:#455A64
+```
+
+## 🛠️ Instalación Rápida  
 
 ```bash
-/start  # Initialize the bot
+# Requisitos
+python -m pip install -U pip
+pip install python-telegram-bot cryptography python-dotenv
 
+# Configuración
+echo "TELEGRAM_TOKEN=tu_token" > .env
+echo "ENCRYPTION_KEY=tu_clave" >> .env
+
+## 🚀 Guía Rápida  
+
+1. **Primeros pasos**  
+   ```bash
+   /start
+
+### **Requisitos**
+
+- **Python 3.8 o superior**.
+- **Librerías necesarias**:
+  - `python-telegram-bot`
+  - `python-dotenv`
+  - `sqlite3`
+
+Instala las dependencias con el siguiente comando:
+
+```bash
+pip install python-telegram-bot python-dotenv
+pip install cryptography boto3
+```
+
+## 🔒 Seguridad y Cumplimiento
+- **Cifrado**: Todos los datos se almacenan con cifrado AES-256
+- **GDPR**: Cumplimiento con derecho al olvido (eliminación total con `/clearall`)
+- **Backups**: Copias diarias automáticas en AWS S3
+
+
+[Click aqui para ver las preguntas](https://github.com/dopemmanuel/RecoNotas/blob/main/preguntas.md)
