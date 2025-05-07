@@ -6,7 +6,12 @@
 ![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
 ![Telegram](https://img.shields.io/badge/Telegram-Bot_API-26A5E4)
 
+<<<<<<< HEAD
 ## 🌟 Key Features  
+=======
+
+## 🌟 Características Principales  
+>>>>>>> origin/main
 
 | Feature               | Description                                  |
 |-----------------------|----------------------------------------------|
