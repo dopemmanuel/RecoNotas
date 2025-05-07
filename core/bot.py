@@ -157,7 +157,7 @@ class RecoNotasBot:
 #--------------------- FIXED...
 
     def _setup_handlers(self):
-        @self.bot.message_handler(commands=['start', 'help', 'menu'])
+        @self.bot.message_handler(commands=['start', 'menu', '?'])
         def send_welcome(message):
             try:
                 user = message.from_user
@@ -188,6 +188,39 @@ class RecoNotasBot:
             except Exception as e: # pylint: disable=broad-except
                 self.config.logger.error(f"Error en send_welcome: {str(e)}")
                 self.bot.reply_to(message, "❌ Ocurrió un error al procesar tu solicitud")
+
+        @self.bot.message_handler(commands=['tutorial', 'help'])
+        def show_tutorial(message):
+            try:
+                _ = self._get_user_translation(message.from_user.id)
+                tutorial_markdown = _(
+                "📚 *Tutorial de RecoNotas*\n\n"
+                "1. *Notas*:\n"
+                "   - /newnote [texto] - Crea una nota\n"
+                "   - /mynotes - Lista tus notas\n"
+                "   - /deletenote - Elimina una nota\n\n"
+                "2. *Recordatorios*:\n"
+                "   - /newreminder [texto] [HH:MM] --recurrente\n"
+                "   - /myreminders - Lista recordatorios\n"
+                "   - /deletereminder - Elimina un recordatorio\n\n"
+                "3. *Seguridad*:\n"
+                "   - /setup2fa - Configura autenticación\n"
+                "   - /settings - Cambia preferencias\n\n"
+                "4. *Otros*:\n"
+                "   - /clearall - Elimina todos tus datos\n\n"
+                "ℹ️ Usa el menú de botones para acceso rápido!"
+                )
+
+                self.bot.reply_to(
+                    message,
+                    tutorial_markdown,
+                    parse_mode="Markdown",
+                    reply_markup=self._get_main_menu()
+                )
+            except Exception as e: # pylint: disable=broad-except
+                self.config.logger.error(f"Error en show_tutorial: {str(e)}")
+                self.bot.reply_to(message, "❌ Error al mostrar el tutorial")
+
 
     def _verify_2fa(self, message, db_user_id):
         """Verifica el código 2FA del usuario"""
@@ -264,34 +297,6 @@ class RecoNotasBot:
                     "❌ Ocurrió un error al procesar tu solicitud",
                     reply_markup=self._get_main_menu()
                 )
-
-        @self.bot.message_handler(commands=['tutorial', 'help'])
-        def show_tutorial(message):
-            try:
-                _ = self._get_user_translation(message.from_user.id)
-                tutorial_markdown = _(
-                    "📚 *Tutorial de RecoNotas*\n\n"
-                    "1. *Notas*:\n"
-                    "   - /newnote [texto] - Crea una nota\n"
-                    "   - /mynotes - Lista tus notas\n\n"
-                    "2. *Recordatorios*:\n"
-                    "   - /newreminder [texto] [HH:MM] --recurrente\n"
-                    "   - /myreminders - Lista recordatorios\n\n"
-                    "3. *Seguridad*:\n"
-                    "   - /setup2fa - Configura autenticación\n"
-                    "   - /settings - Cambia preferencias\n\n"
-                    "ℹ️ Usa el menú de botones para acceso rápido!"
-                )
-
-                self.bot.reply_to(
-                    message,
-                    tutorial_markdown,
-                    parse_mode="Markdown",
-                    reply_markup=self._get_main_menu()
-                )
-            except Exception as e: # pylint: disable=broad-except
-                self.config.logger.error(f"Error en show_tutorial: {str(e)}")
-                self.bot.reply_to(message, "❌ Error al mostrar el tutorial")
 
         @self.bot.message_handler(commands=['setup2fa'])
         def setup_2fa(message):
@@ -590,6 +595,7 @@ class RecoNotasBot:
                     _("❌ Error al listar los recordatorios"),
                     reply_markup=self._get_main_menu()
                 )
+
         @self.bot.message_handler(commands=['deletereminder', 'delreminder'])
         def delete_reminder(message):
             try:

@@ -36,31 +36,30 @@
 |---------|--------|---------|
 | `/newreminder` | Nuevo recordatorio | `/newreminder Reunión 15:30` |
 | `/myreminders` | Listar recordatorios | `/myreminders` |
-
+| `/mdeletereminder`| Eliminar Recordatorio | `/mdeletereminder Reunión 15:30`|
 ### ⚙️ Configuración  
 | Comando | Función |  
 |---------|---------|  
 | `/settings` | Preferencias de usuario |  
 | `/backup` | Respaldar datos |  
 
-### Arquitectura de Seguridad
+### Estructura de archivos 
 ```mermaid
 graph TD
-        A[main.py] --> B[core/bot.py]
+    A[main.py] --> B[core/bot.py]
     B --> C[models/config.py]
     B --> D[models/database.py]
     B --> E[models/encryption.py]
-    B --> F[handlers/commands.py]
-    F --> G[services/reminder_service.py]
+
     
     style A fill:#4CAF50,stroke:#388E3C
     style B fill:#2196F3,stroke:#1976D2
     style C fill:#FFC107,stroke:#FFA000
     style D fill:#FFC107,stroke:#FFA000
     style E fill:#FFC107,stroke:#FFA000
-    style F fill:#9C27B0,stroke:#7B1FA2
-    style G fill:#607D8B,stroke:#455A64
+
 ```
+
 
 ## 🛠️ Instalación Rápida  
 
