@@ -1,1 +1,4 @@
 .env
+secure_reconotas.db-shm
+secure_reconotas.db-wal
+auditoria.log
