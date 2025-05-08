@@ -1,6 +1,3 @@
-""" 
-Comment
-"""
 import os
 import sys
 import gettext
@@ -32,6 +29,70 @@ class RecoNotasBot:
         self._setup_handlers()
         self._load_pending_reminders()
         self._clear_console()
+
+    def _setup_handlers(self):
+        @self.bot.message_handler(commands=['start', 'menu'])
+        def send_welcome(message):
+            try:
+                user = message.from_user
+                user_id = user.id
+
+                cursor = self.db.conn.cursor()
+                cursor.execute(
+                    "INSERT OR IGNORE INTO usuarios (telegram_id, lenguaje) VALUES (?, ?)",
+                    (user_id, self.config.default_lang)
+                )
+                self.db.conn.commit()
+
+                cursor.execute("SELECT id FROM usuarios WHERE telegram_id = ?", (user_id,))
+                db_user_id = cursor.fetchone()[0]
+
+                # Verificar 2FA si está activado
+                cursor.execute("SELECT secret FROM auth_2fa WHERE usuario_id = ? AND activado = 1",
+                    (db_user_id,))
+                if cursor.fetchone():
+                    msg = self.bot.reply_to(message, "🔐 Ingresa tu código 2FA:")
+                    self.bot.register_next_step_handler(
+                        msg, lambda m: self._verify_2fa(m, db_user_id)
+                    )
+                    return
+
+                self._show_main_menu(message, db_user_id)
+
+            except Exception as e: # pylint: disable=broad-except
+                self.config.logger.error(f"Error en send_welcome: {str(e)}")
+                self.bot.reply_to(message, "❌ Ocurrió un error al procesar tu solicitud")
+
+        @self.bot.message_handler(commands=['help', 'tutorial'])
+        def show_tutorial(message):
+            try:
+                _ = self._get_user_translation(message.from_user.id)
+                tutorial_markdown = _(
+                    "📚 *Tutorial de RecoNotas*\n\n"
+                    "1. *Notas*:\n"
+                    "   - /newnote [texto] - Crea una nota\n"
+                    "   - /mynotes - Lista tus notas\n"
+                    "   - /deletenote - Elimina una nota\n\n"
+                    "2. *Recordatorios*:\n"
+                    "   - /newreminder [texto] [HH:MM] --recurrente\n"
+                    "   - /myreminders - Lista recordatorios\n"
+                    "   - /deletereminder - Elimina un recordatorio\n\n"
+                    "3. *Seguridad*:\n"
+                    "   - /setup2fa - Configura autenticación\n"
+                    "   - /settings - Cambia preferencias\n\n"
+                    "ℹ️ Usa el menú de botones para acceso rápido!"
+                )
+
+                self.bot.reply_to(
+                    message,
+                    tutorial_markdown,
+                    parse_mode="Markdown",
+                    reply_markup=self._get_main_menu()
+                )
+            except Exception as e: # pylint: disable=broad-except
+                self.config.logger.error(f"Error en show_tutorial: {str(e)}")
+                self.bot.reply_to(message, "❌ Error al mostrar el tutorial")
+
 
     def _clear_console(self):
         """Limpia la consola según el sistema operativo"""
@@ -69,7 +130,9 @@ class RecoNotasBot:
             '⏰ Añadir Recordatorio',
             '🔄 Listar Recordatorios',
             '❌ Eliminar Recordatorio',
-            '⚙️ Configuración'
+            '🔐 2FA',
+            '⚙️ Configuración',
+            '❓ Ayuda'
         )
         return markup
 
@@ -91,7 +154,7 @@ class RecoNotasBot:
         except Exception as e: # pylint: disable=broad-except
             self.config.logger.error(f"Error cargando recordatorios: {str(e)}")
 
-#----------------------------
+#------------------
     def _schedule_reminder(self, user_id, reminder_time, text, reminder_id=None, recurrente=False):
         """Programa un recordatorio para enviarse a la hora especificada"""
         try:
@@ -154,73 +217,7 @@ class RecoNotasBot:
             if (user_id, text) in self.active_reminders:
                 del self.active_reminders[(user_id, text)]
 
-#--------------------- FIXED...
-
-    def _setup_handlers(self):
-        @self.bot.message_handler(commands=['start', 'menu', '?'])
-        def send_welcome(message):
-            try:
-                user = message.from_user
-                user_id = user.id
-
-                cursor = self.db.conn.cursor()
-                cursor.execute(
-                    "INSERT OR IGNORE INTO usuarios (telegram_id, lenguaje) VALUES (?, ?)",
-                    (user_id, self.config.default_lang)
-                )
-                self.db.conn.commit()
-
-                cursor.execute("SELECT id FROM usuarios WHERE telegram_id = ?", (user_id,))
-                db_user_id = cursor.fetchone()[0]
-
-                # Verificar 2FA si está activado
-                cursor.execute("SELECT secret FROM auth_2fa WHERE usuario_id = ? AND activado = 1",
-                    (db_user_id,))
-                if cursor.fetchone():
-                    msg = self.bot.reply_to(message, "🔐 Ingresa tu código 2FA:")
-                    self.bot.register_next_step_handler(
-                        msg, lambda m: self._verify_2fa(m, db_user_id)
-                    )
-                    return
-
-                self._show_main_menu(message, db_user_id)
-
-            except Exception as e: # pylint: disable=broad-except
-                self.config.logger.error(f"Error en send_welcome: {str(e)}")
-                self.bot.reply_to(message, "❌ Ocurrió un error al procesar tu solicitud")
-
-        @self.bot.message_handler(commands=['tutorial', 'help'])
-        def show_tutorial(message):
-            try:
-                _ = self._get_user_translation(message.from_user.id)
-                tutorial_markdown = _(
-                "📚 *Tutorial de RecoNotas*\n\n"
-                "1. *Notas*:\n"
-                "   - /newnote [texto] - Crea una nota\n"
-                "   - /mynotes - Lista tus notas\n"
-                "   - /deletenote - Elimina una nota\n\n"
-                "2. *Recordatorios*:\n"
-                "   - /newreminder [texto] [HH:MM] --recurrente\n"
-                "   - /myreminders - Lista recordatorios\n"
-                "   - /deletereminder - Elimina un recordatorio\n\n"
-                "3. *Seguridad*:\n"
-                "   - /setup2fa - Configura autenticación\n"
-                "   - /settings - Cambia preferencias\n\n"
-                "4. *Otros*:\n"
-                "   - /clearall - Elimina todos tus datos\n\n"
-                "ℹ️ Usa el menú de botones para acceso rápido!"
-                )
-
-                self.bot.reply_to(
-                    message,
-                    tutorial_markdown,
-                    parse_mode="Markdown",
-                    reply_markup=self._get_main_menu()
-                )
-            except Exception as e: # pylint: disable=broad-except
-                self.config.logger.error(f"Error en show_tutorial: {str(e)}")
-                self.bot.reply_to(message, "❌ Error al mostrar el tutorial")
-
+#------------------
 
     def _verify_2fa(self, message, db_user_id):
         """Verifica el código 2FA del usuario"""
@@ -238,6 +235,7 @@ class RecoNotasBot:
             self.config.logger.error(f"Error en verify_2fa: {str(e)}")
             self.bot.reply_to(message, "❌ Error en autenticación")
 #------------------Menu con los botones--------------
+
     def _show_main_menu(self, message, db_user_id):
         """Muestra el menú principal al usuario"""
         _ = self._get_user_translation(message.from_user.id)
@@ -281,8 +279,14 @@ class RecoNotasBot:
                     add_reminder(message)
                 elif 'listar recordatorios' in text or 'listreminders' in text:
                     list_reminders(message)
+                elif 'eliminar recordatorio' in text or 'deletereminder' in text:
+                    delete_reminder(message)
                 elif 'configuración' in text or 'settings' in text:
                     show_settings(message)
+                elif 'ayuda' in text or 'help' in text:
+                    show_tutorial(message)
+                elif '2fa' in text or 'autenticación' in text:
+                    setup_2fa(message)
                 else:
                     self.bot.reply_to(
                         message,
@@ -297,6 +301,7 @@ class RecoNotasBot:
                     "❌ Ocurrió un error al procesar tu solicitud",
                     reply_markup=self._get_main_menu()
                 )
+
 
         @self.bot.message_handler(commands=['setup2fa'])
         def setup_2fa(message):
@@ -665,7 +670,37 @@ class RecoNotasBot:
             except Exception as e: # pylint: disable=broad-except
                 self.config.logger.error(f"Error en clear_all_data: {str(e)}")
                 self.bot.reply_to(message, _("❌ Error al procesar la solicitud"))
+        
+        @self.bot.message_handler(commands=['help', 'tutorial'])
+        def show_tutorial(message):
+            try:
+                _ = self._get_user_translation(message.from_user.id)
+                tutorial_markdown = _(
+                    "📚 *Tutorial de RecoNotas*\n\n"
+                    "1. *Notas*:\n"
+                    "   - /newnote [texto] - Crea una nota\n"
+                    "   - /mynotes - Lista tus notas\n"
+                    "   - /deletenote - Elimina una nota\n\n"
+                    "2. *Recordatorios*:\n"
+                    "   - /newreminder [texto] [HH:MM] --recurrente\n"
+                    "   - /myreminders - Lista recordatorios\n"
+                    "   - /deletereminder - Elimina un recordatorio\n\n"
+                    "3. *Seguridad*:\n"
+                    "   - /setup2fa - Configura autenticación\n"
+                    "   - /settings - Cambia preferencias\n\n"
+                    "ℹ️ Usa el menú de botones para acceso rápido!"
+                )
 
+                self.bot.reply_to(
+                    message,
+                    tutorial_markdown,
+                    parse_mode="Markdown",
+                    reply_markup=self._get_main_menu()
+                )
+            except Exception as e: # pylint: disable=broad-except
+                self.config.logger.error(f"Error en show_tutorial: {str(e)}")
+                self.bot.reply_to(message, "❌ Error al mostrar el tutorial")
+    
         @self.bot.callback_query_handler(
                 func=lambda call: call.data in ['confirm_clear', 'cancel_clear']
         )
@@ -715,7 +750,7 @@ class RecoNotasBot:
                     show_alert=True
                 )
 
-#--------------------- FIXED..
+#------------------
     def _process_note_step(self, message):
         """Procesa el texto de la nota recibido"""
         try:
@@ -993,12 +1028,4 @@ class RecoNotasBot:
             self.config.logger.critical(f"Error crítico: {str(e)}")
             sys.exit(1)
 
-        self.config.logger.info("Iniciando RecoNotas Secure v2.3")
-        try:
-            self.bot.polling(none_stop=True)
-        except KeyboardInterrupt:
-            self.config.logger.info("Bot detenido por el usuario")
-            sys.exit(0)
-        except Exception as e: # pylint: disable=broad-except
-            self.config.logger.critical(f"Error crítico: {str(e)}")
-            sys.exit(1)
+        self.config.logger.info("Iniciando RecoNotas Secure v2.5")

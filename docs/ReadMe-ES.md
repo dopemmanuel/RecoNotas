@@ -1,6 +1,6 @@
 # 🤖 RecoNotas Bot - Tu asistente organizacional en Telegram  
 
-![Versión](https://img.shields.io/badge/Versión-2.2-blue) 
+![Versión](https://img.shields.io/badge/Versión-2.5-blue) 
 ![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB)
 ![Licencia](https://img.shields.io/badge/Licencia-MIT-green)
 ![Estado](https://img.shields.io/badge/Estado-Producción-brightgreen)
@@ -12,7 +12,7 @@
 ✅ **Limpieza automática de consola**  
 ✅ **Soporte mejorado para Markdown**  
 ✅ **Sistema de recordatorios optimizado**  
-✅ **Nuevos comandos rápidos**  
+✅ **Botones incorporados**  
 
 ## 🎯 Características Principales  
 
@@ -37,11 +37,12 @@
 | `/newreminder` | Nuevo recordatorio | `/newreminder Reunión 15:30` |
 | `/myreminders` | Listar recordatorios | `/myreminders` |
 | `/mdeletereminder`| Eliminar Recordatorio | `/mdeletereminder Reunión 15:30`|
-### ⚙️ Configuración  
+
+### ⚙️ Seguridad
 | Comando | Función |  
 |---------|---------|  
 | `/settings` | Preferencias de usuario |  
-| `/backup` | Respaldar datos |  
+| `/setup2fa` | dev_tool, te permite ver tu codigo de autenticacion  |  
 
 ### Estructura de archivos 
 ```mermaid
@@ -63,40 +64,63 @@ graph TD
 
 ## 🛠️ Instalación Rápida  
 
-```bash
-# Requisitos
+
+### Requisitos
+
+
+**Python 3.8 o superior**
+**Librerias principales**:  
+- `python-telegram-bot`
+- `python-dotenv`
+- `cryptography`
+- `boto3`
+- `import os`
+- `import sys`
+- `import io`
+- `import json`
+- `import logging`
+- `import sqlite3`
+- `import gettext`
+- `from threading import Lock, Timer`
+- `from datetime import datetime, timedelta`
+- `import base64`
+- `from functools import partial`
+- `from pathlib import Path`
+- `from dotenv import load_dotenv`
+- `import telebot`
+- `import pyotp`
+- `from cryptography.fernet import Fernet`
+- `from cryptography.hazmat.primitives import hashes`
+- `from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC`
+
+```python
+# Requirements
 python -m pip install -U pip
 pip install python-telegram-bot cryptography python-dotenv
 
-# Configuración
-echo "TELEGRAM_TOKEN=tu_token" > .env
-echo "ENCRYPTION_KEY=tu_clave" >> .env
+## Configuration
+echo "TELEGRAM_BOT_TOKEN=tu_token" > .env
+echo "ENCRYPTION_SALT=tu_codigo_de_enriptacion" >> .env
+echo "ENCRYPTION_MASTER_PASSWORD=tu_contraseña" >> .env
 
-## 🚀 Guía Rápida  
+### Important Notes:
+TELEGRAM_BOT_TOKEN - Consigue tu token de @BotFather en Telegram
 
-1. **Primeros pasos**  
-   ```bash
-   /start
+ENCRYPTION_SALT - Puede ser una caderna larga con numeros (minimo 16 characteres)
 
-### **Requisitos**
+ENCRYPTION_MASTER_PASSWORD - la contraseña que quieras
 
-- **Python 3.8 o superior**.
-- **Librerías necesarias**:
-  - `python-telegram-bot`
-  - `python-dotenv`
-  - `sqlite3`
-
-Instala las dependencias con el siguiente comando:
-
-```bash
-pip install python-telegram-bot python-dotenv
-pip install cryptography boto3
 ```
 
-## 🔒 Seguridad y Cumplimiento
-- **Cifrado**: Todos los datos se almacenan con cifrado AES-256
-- **GDPR**: Cumplimiento con derecho al olvido (eliminación total con `/clearall`)
-- **Backups**: Copias diarias automáticas en AWS S3
+## 🔒 Seguridad & Complimiento
+
+**🔐 Cifrado AES-256: Todos los datos se cifran antes de ser almacenados.**
+
+**✅ Cumplimiento con GDPR: Incluye el comando /clearall para borrar todos los datos del usuario**
+
+**☁️ Copia de Seguridad en la Nube: Respaldos automáticos en AWS S3.**
+
+**🔑 Autenticación en Dos Factores: Configuración mediante el comando /setup2fa.**
 
 
 [Click aqui para ver las preguntas](https://github.com/dopemmanuel/RecoNotas/blob/main/preguntas.md)
