@@ -1,5 +1,5 @@
 """
-RECONOTAS v2.5 Bot de Telegram seguro y optimizado 
+RECONOTAS v2.5 <- 2.3 RELOADED Bot de Telegram seguro y optimizado 
 con autenticación 2FA y multiidioma
 """
 
@@ -209,39 +209,6 @@ class RecoNotasBot:
         self._load_pending_reminders()
         self._clear_console()
 
-    def _setup_handlers(self):
-        @self.bot.message_handler(commands=['start', 'menu'])
-        def send_welcome(message):
-            try:
-                user = message.from_user
-                user_id = user.id
-
-                cursor = self.db.conn.cursor()
-                cursor.execute(
-                    "INSERT OR IGNORE INTO usuarios (telegram_id, lenguaje) VALUES (?, ?)",
-                    (user_id, self.config.default_lang)
-                )
-                self.db.conn.commit()
-
-                cursor.execute("SELECT id FROM usuarios WHERE telegram_id = ?", (user_id,))
-                db_user_id = cursor.fetchone()[0]
-
-                # Verificar 2FA si está activado
-                cursor.execute("SELECT secret FROM auth_2fa WHERE usuario_id = ? AND activado = 1",
-                    (db_user_id,))
-                if cursor.fetchone():
-                    msg = self.bot.reply_to(message, "🔐 Ingresa tu código 2FA:")
-                    self.bot.register_next_step_handler(
-                        msg, lambda m: self._verify_2fa(m, db_user_id)
-                    )
-                    return
-
-                self._show_main_menu(message, db_user_id)
-
-            except Exception as e: # pylint: disable=broad-except
-                self.config.logger.error(f"Error en send_welcome: {str(e)}")
-                self.bot.reply_to(message, "❌ Ocurrió un error al procesar tu solicitud")
-
     def _clear_console(self):
         """Limpia la consola según el sistema operativo"""
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -300,7 +267,7 @@ class RecoNotasBot:
         except Exception as e: # pylint: disable=broad-except
             self.config.logger.error(f"Error cargando recordatorios: {str(e)}")
 
-#------------------
+#----------------------------
     def _schedule_reminder(self, user_id, reminder_time, text, reminder_id=None, recurrente=False):
         """Programa un recordatorio para enviarse a la hora especificada"""
         try:
@@ -363,7 +330,40 @@ class RecoNotasBot:
             if (user_id, text) in self.active_reminders:
                 del self.active_reminders[(user_id, text)]
 
-#------------------
+#--------------------- FIXED...
+
+    def _setup_handlers(self):
+        @self.bot.message_handler(commands=['start', 'help', 'menu'])
+        def send_welcome(message):
+            try:
+                user = message.from_user
+                user_id = user.id
+
+                cursor = self.db.conn.cursor()
+                cursor.execute(
+                    "INSERT OR IGNORE INTO usuarios (telegram_id, lenguaje) VALUES (?, ?)",
+                    (user_id, self.config.default_lang)
+                )
+                self.db.conn.commit()
+
+                cursor.execute("SELECT id FROM usuarios WHERE telegram_id = ?", (user_id,))
+                db_user_id = cursor.fetchone()[0]
+
+                # Verificar 2FA si está activado
+                cursor.execute("SELECT secret FROM auth_2fa WHERE usuario_id = ? AND activado = 1",
+                    (db_user_id,))
+                if cursor.fetchone():
+                    msg = self.bot.reply_to(message, "🔐 Ingresa tu código 2FA:")
+                    self.bot.register_next_step_handler(
+                        msg, lambda m: self._verify_2fa(m, db_user_id)
+                    )
+                    return
+
+                self._show_main_menu(message, db_user_id)
+
+            except Exception as e: # pylint: disable=broad-except
+                self.config.logger.error(f"Error en send_welcome: {str(e)}")
+                self.bot.reply_to(message, "❌ Ocurrió un error al procesar tu solicitud")
 
     def _verify_2fa(self, message, db_user_id):
         """Verifica el código 2FA del usuario"""
@@ -380,13 +380,13 @@ class RecoNotasBot:
         except Exception as e: # pylint: disable=broad-except
             self.config.logger.error(f"Error en verify_2fa: {str(e)}")
             self.bot.reply_to(message, "❌ Error en autenticación")
-#------------------Menu con los botones--------------
 
+#------------------Menu de comandos--------------
     def _show_main_menu(self, message, db_user_id):
         """Muestra el menú principal al usuario"""
         _ = self._get_user_translation(message.from_user.id)
         welcome_msg = _(
-            "🔐 *Bienvenido a RecoNotas v2.5_beta*\n\n"
+            "🔐 *Bienvenido a RecoNotas v2.5-beta*\n\n"
             "📝 **Selecciona una opción del menú:**\n"
             "O usa los comandos tradicionales si lo prefieres"
         )
@@ -425,14 +425,8 @@ class RecoNotasBot:
                     add_reminder(message)
                 elif 'listar recordatorios' in text or 'listreminders' in text:
                     list_reminders(message)
-                elif 'eliminar recordatorio' in text or 'deletereminder' in text:
-                    delete_reminder(message)
                 elif 'configuración' in text or 'settings' in text:
                     show_settings(message)
-                elif 'ayuda' in text or 'help' in text:
-                    show_tutorial(message)
-                elif '2fa' in text or 'autenticación' in text:
-                    setup_2fa(message)
                 else:
                     self.bot.reply_to(
                         message,
@@ -447,6 +441,34 @@ class RecoNotasBot:
                     "❌ Ocurrió un error al procesar tu solicitud",
                     reply_markup=self._get_main_menu()
                 )
+
+        @self.bot.message_handler(commands=['tutorial', 'help'])
+        def show_tutorial(message):
+            try:
+                _ = self._get_user_translation(message.from_user.id)
+                tutorial_markdown = _(
+                    "📚 *Tutorial de RecoNotas*\n\n"
+                    "1. *Notas*:\n"
+                    "   - /newnote [texto] - Crea una nota\n"
+                    "   - /mynotes - Lista tus notas\n\n"
+                    "2. *Recordatorios*:\n"
+                    "   - /newreminder [texto] [HH:MM] --recurrente\n"
+                    "   - /myreminders - Lista recordatorios\n\n"
+                    "3. *Seguridad*:\n"
+                    "   - /setup2fa - Configura autenticación\n"
+                    "   - /settings - Cambia preferencias\n\n"
+                    "ℹ️ Usa el menú de botones para acceso rápido!"
+                )
+
+                self.bot.reply_to(
+                    message,
+                    tutorial_markdown,
+                    parse_mode="Markdown",
+                    reply_markup=self._get_main_menu()
+                )
+            except Exception as e: # pylint: disable=broad-except
+                self.config.logger.error(f"Error en show_tutorial: {str(e)}")
+                self.bot.reply_to(message, "❌ Error al mostrar el tutorial")
 
         @self.bot.message_handler(commands=['setup2fa'])
         def setup_2fa(message):
@@ -815,37 +837,7 @@ class RecoNotasBot:
             except Exception as e: # pylint: disable=broad-except
                 self.config.logger.error(f"Error en clear_all_data: {str(e)}")
                 self.bot.reply_to(message, _("❌ Error al procesar la solicitud"))
-        
-        @self.bot.message_handler(commands=['help', 'tutorial'])
-        def show_tutorial(message):
-            try:
-                _ = self._get_user_translation(message.from_user.id)
-                tutorial_markdown = _(
-                    "📚 *Tutorial de RecoNotas*\n\n"
-                    "1. *Notas*:\n"
-                    "   - /newnote [texto] - Crea una nota\n"
-                    "   - /mynotes - Lista tus notas\n"
-                    "   - /deletenote - Elimina una nota\n\n"
-                    "2. *Recordatorios*:\n"
-                    "   - /newreminder [texto] [HH:MM] --recurrente\n"
-                    "   - /myreminders - Lista recordatorios\n"
-                    "   - /deletereminder - Elimina un recordatorio\n\n"
-                    "3. *Seguridad*:\n"
-                    "   - /setup2fa - Configura autenticación\n"
-                    "   - /settings - Cambia preferencias\n\n"
-                    "ℹ️ Usa el menú de botones para acceso rápido!"
-                )
 
-                self.bot.reply_to(
-                    message,
-                    tutorial_markdown,
-                    parse_mode="Markdown",
-                    reply_markup=self._get_main_menu()
-                )
-            except Exception as e: # pylint: disable=broad-except
-                self.config.logger.error(f"Error en show_tutorial: {str(e)}")
-                self.bot.reply_to(message, "❌ Error al mostrar el tutorial")
-    
         @self.bot.callback_query_handler(
                 func=lambda call: call.data in ['confirm_clear', 'cancel_clear']
         )
@@ -894,8 +886,73 @@ class RecoNotasBot:
                     _("❌ Error al eliminar datos"),
                     show_alert=True
                 )
+#------------------------------------------------
+    def _process_delete_reminder_step(self, message):
+        """Procesa la selección de recordatorio a eliminar"""
+        try:
+            user_id = message.from_user.id
+            selected_reminder = message.text
+            _ = self._get_user_translation(user_id)
 
-#------------------
+            # Extraer el ID del recordatorio del texto seleccionado
+            reminder_id = int(selected_reminder.split(":")[0])
+
+            cursor = self.db.conn.cursor()
+            cursor.execute("SELECT id FROM usuarios WHERE telegram_id = ?", (user_id,))
+            db_user_id = cursor.fetchone()[0]
+
+            # Cancelar el recordatorio si está programado
+            for (uid, text), timer in list(self.active_reminders.items()):
+                if uid == user_id:
+                    cursor.execute("SELECT id FROM recordatorios WHERE id = ?", (reminder_id,))
+                    if cursor.fetchone():
+                        timer.cancel()
+                        del self.active_reminders[(uid, text)]
+
+            # Eliminar de la base de datos
+            cursor.execute(
+                "DELETE FROM recordatorios WHERE id = ? AND usuario_id = ?",
+                (reminder_id, db_user_id)
+            )
+
+            if cursor.rowcount == 0:
+                self.bot.reply_to(
+                    message,
+                    _("❌ El recordatorio no existe o no tienes permisos para eliminarlo"),
+                    reply_markup=self._get_main_menu()
+                )
+                return
+
+            self.db.conn.commit()
+
+            self.bot.reply_to(
+                message,
+                _("✅ Recordatorio {id} eliminado correctamente").format(id=reminder_id),
+                reply_markup=self._get_main_menu()
+            )
+
+            # Registrar en auditoría
+            self.db.registrar_auditoria(
+                db_user_id,
+                "RECORDATORIO_ELIMINADO",
+                {"reminder_id": reminder_id}
+            )
+
+        except ValueError:
+            self.bot.reply_to(
+                message,
+                _("❌ Formato de selección inválido"),
+                reply_markup=self._get_main_menu()
+            )
+        except Exception as e: # pylint: disable=broad-except
+            self.db.conn.rollback()
+            self.config.logger.error(f"Error en _process_delete_reminder_step: {str(e)}")
+            self.bot.reply_to(
+                message,
+                _("❌ Error al eliminar el recordatorio"),
+                reply_markup=self._get_main_menu()
+            )
+#--------------------- FIXED..
     def _process_note_step(self, message):
         """Procesa el texto de la nota recibido"""
         try:
@@ -1039,72 +1096,6 @@ class RecoNotasBot:
                 reply_markup=self._get_main_menu()
             )
 
-    def _process_delete_reminder_step(self, message):
-        """Procesa la selección de recordatorio a eliminar"""
-        try:
-            user_id = message.from_user.id
-            selected_reminder = message.text
-            _ = self._get_user_translation(user_id)
-
-            # Extraer el ID del recordatorio del texto seleccionado
-            reminder_id = int(selected_reminder.split(":")[0])
-
-            cursor = self.db.conn.cursor()
-            cursor.execute("SELECT id FROM usuarios WHERE telegram_id = ?", (user_id,))
-            db_user_id = cursor.fetchone()[0]
-
-            # Cancelar el recordatorio si está programado
-            for (uid, text), timer in list(self.active_reminders.items()):
-                if uid == user_id:
-                    cursor.execute("SELECT id FROM recordatorios WHERE id = ?", (reminder_id,))
-                    if cursor.fetchone():
-                        timer.cancel()
-                        del self.active_reminders[(uid, text)]
-
-            # Eliminar de la base de datos
-            cursor.execute(
-                "DELETE FROM recordatorios WHERE id = ? AND usuario_id = ?",
-                (reminder_id, db_user_id)
-            )
-
-            if cursor.rowcount == 0:
-                self.bot.reply_to(
-                    message,
-                    _("❌ El recordatorio no existe o no tienes permisos para eliminarlo"),
-                    reply_markup=self._get_main_menu()
-                )
-                return
-
-            self.db.conn.commit()
-
-            self.bot.reply_to(
-                message,
-                _("✅ Recordatorio {id} eliminado correctamente").format(id=reminder_id),
-                reply_markup=self._get_main_menu()
-            )
-
-            # Registrar en auditoría
-            self.db.registrar_auditoria(
-                db_user_id,
-                "RECORDATORIO_ELIMINADO",
-                {"reminder_id": reminder_id}
-            )
-
-        except ValueError:
-            self.bot.reply_to(
-                message,
-                _("❌ Formato de selección inválido"),
-                reply_markup=self._get_main_menu()
-            )
-        except Exception as e:  # pylint: disable=broad-except
-            self.db.conn.rollback()
-            self.config.logger.error(f"Error en _process_delete_reminder_step: {str(e)}")
-            self.bot.reply_to(
-                message,
-                _("❌ Error al eliminar el recordatorio"),
-                reply_markup=self._get_main_menu()
-            )
-
     def _process_reminder_time_step(self, message, reminder_text, recurrente=False):
         """Procesa la hora del recordatorio y lo guarda"""
         try:
@@ -1172,8 +1163,6 @@ class RecoNotasBot:
         except Exception as e: # pylint: disable=broad-except
             self.config.logger.critical(f"Error crítico: {str(e)}")
             sys.exit(1)
-
-        self.config.logger.info("Iniciando RecoNotas Secure v2.5")
 
 # ------------------------- EJECUCIÓN -------------------------
 if __name__ == "__main__":

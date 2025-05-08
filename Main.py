@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
-
 # Cambio necesario: Ajustar imports
 import sys
 from models.Config import Config
-from core.bot import RecoNotasBot
+from core.Bot import RecoNotasBot
 
 # [Código final del archivo original SIN CAMBIOS]
 if __name__ == "__main__":
